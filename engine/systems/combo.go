@@ -6,6 +6,8 @@ import (
 	"lbbaspack/engine/events"
 )
 
+const SystemTypeCombo SystemType = "combo"
+
 type ComboSystem struct {
 	BaseSystem
 	currentCombo  int
@@ -25,6 +27,20 @@ func NewComboSystem() *ComboSystem {
 		comboTimer:    0.0,
 		comboTimeout:  3.0, // 3 seconds to maintain combo
 		lastComboTime: 0.0,
+	}
+}
+
+// GetSystemInfo returns the system metadata for dependency resolution
+func (cs *ComboSystem) GetSystemInfo() *SystemInfo {
+	return &SystemInfo{
+		Type:         SystemTypeCombo,
+		System:       cs,
+		Dependencies: []SystemType{SystemTypeCollision},
+		Conflicts:    []SystemType{},
+		Provides:     []string{"combo_tracking", "score_multiplier"},
+		Requires:     []string{},
+		Drawable:     false,
+		Optional:     true,
 	}
 }
 

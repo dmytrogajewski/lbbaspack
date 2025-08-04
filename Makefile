@@ -75,6 +75,25 @@ help: ## Show this help message
 
 
 
+# Build targets
+.PHONY: build
+build: $(BIN_DIR) ## Build the application
+	@echo "Building $(BINARY_NAME)..."
+	$(GOBUILD) $(LDFLAGS) -o $(BINARY) $(MAIN_FILE)
+	@echo "Build complete: $(BINARY)"
+
+.PHONY: build-debug
+build-debug: $(BIN_DIR) ## Build debug version
+	@echo "Building debug version..."
+	$(GOBUILD) $(LDFLAGS) -gcflags="all=-N -l" -o $(BINARY)-debug $(MAIN_FILE)
+	@echo "Debug build complete: $(BINARY)-debug"
+
+.PHONY: build-release
+build-release: $(DIST_DIR) ## Build release version
+	@echo "Building release version..."
+	$(GOBUILD) $(LDFLAGS) -ldflags="-s -w" -o $(DIST_BINARY) $(MAIN_FILE)
+	@echo "Release build complete: $(DIST_BINARY)"
+
 # Test targets
 .PHONY: test
 test: $(COVERAGE_DIR) ## Run all tests

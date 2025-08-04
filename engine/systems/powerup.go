@@ -5,6 +5,8 @@ import (
 	"lbbaspack/engine/events"
 )
 
+const SystemTypePowerUp SystemType = "powerup"
+
 type PowerUpSystem struct {
 	BaseSystem
 	activePowerUps map[string]float64 // powerup name -> remaining time
@@ -18,6 +20,20 @@ func NewPowerUpSystem() *PowerUpSystem {
 			},
 		},
 		activePowerUps: make(map[string]float64),
+	}
+}
+
+// GetSystemInfo returns the system metadata for dependency resolution
+func (pus *PowerUpSystem) GetSystemInfo() *SystemInfo {
+	return &SystemInfo{
+		Type:         SystemTypePowerUp,
+		System:       pus,
+		Dependencies: []SystemType{SystemTypeCollision},
+		Conflicts:    []SystemType{},
+		Provides:     []string{"powerup_management", "effect_activation"},
+		Requires:     []string{},
+		Drawable:     false,
+		Optional:     true,
 	}
 }
 

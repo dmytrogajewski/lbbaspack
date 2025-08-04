@@ -1,12 +1,15 @@
 package systems
 
 import (
+	"fmt"
 	"image/color"
 	"lbbaspack/engine/events"
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/vector"
 )
+
+const SystemTypeRouting SystemType = "routing"
 
 type RoutingSystem struct {
 	BaseSystem
@@ -26,6 +29,20 @@ func NewRoutingSystem() *RoutingSystem {
 	return &RoutingSystem{
 		BaseSystem: BaseSystem{},
 		routes:     make([]*Route, 0),
+	}
+}
+
+// GetSystemInfo returns the system metadata for dependency resolution
+func (rs *RoutingSystem) GetSystemInfo() *SystemInfo {
+	return &SystemInfo{
+		Type:         SystemTypeRouting,
+		System:       rs,
+		Dependencies: []SystemType{SystemTypeCollision},
+		Conflicts:    []SystemType{},
+		Provides:     []string{"route_visualization", "network_paths"},
+		Requires:     []string{},
+		Drawable:     true,
+		Optional:     true,
 	}
 }
 
@@ -94,12 +111,14 @@ func (rs *RoutingSystem) CreateRoute(startX, startY, endX, endY float64, packetC
 func (rs *RoutingSystem) Initialize(eventDispatcher *events.EventDispatcher) {
 	// Listen for packet caught events to create routing visualization
 	eventDispatcher.Subscribe(events.EventPacketCaught, func(event *events.Event) {
+		fmt.Println("[RoutingSystem] Packet caught event received")
 		if event.Data.Packet != nil {
 			if packetEntity, ok := event.Data.Packet.(Entity); ok {
 				// Get packet position and color
 				transformComp := packetEntity.GetTransform()
 				spriteComp := packetEntity.GetSprite()
 				if transformComp == nil || spriteComp == nil {
+					fmt.Println("[RoutingSystem] Packet entity missing transform or sprite")
 					return
 				}
 
@@ -130,8 +149,14 @@ func (rs *RoutingSystem) Initialize(eventDispatcher *events.EventDispatcher) {
 				endX := backendX + backendWidth/2
 				endY := backendY + 20.0 // Center of backend
 
+				fmt.Printf("[RoutingSystem] Creating route from (%.1f, %.1f) to (%.1f, %.1f) for backend %d\n",
+					startX, startY, endX, endY, backendIndex)
 				rs.CreateRoute(startX, startY, endX, endY, sprite.GetColor())
+			} else {
+				fmt.Println("[RoutingSystem] Packet entity is not of correct type")
 			}
+		} else {
+			fmt.Println("[RoutingSystem] Packet data is nil")
 		}
 	})
 }

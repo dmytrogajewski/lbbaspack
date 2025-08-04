@@ -5,6 +5,8 @@ import (
 	"lbbaspack/engine/events"
 )
 
+const SystemTypeSLA SystemType = "sla"
+
 type SLASystem struct {
 	BaseSystem
 	totalPackets  int
@@ -26,6 +28,20 @@ func NewSLASystem(spawnSys *SpawnSystem) *SLASystem {
 		lostPackets:   0,
 		errorBudget:   10, // Default error budget
 		spawnSys:      spawnSys,
+	}
+}
+
+// GetSystemInfo returns the system metadata for dependency resolution
+func (slas *SLASystem) GetSystemInfo() *SystemInfo {
+	return &SystemInfo{
+		Type:         SystemTypeSLA,
+		System:       slas,
+		Dependencies: []SystemType{SystemTypeCollision}, // Depends on collision for packet events
+		Conflicts:    []SystemType{},
+		Provides:     []string{"sla_monitoring", "performance_tracking"},
+		Requires:     []string{},
+		Drawable:     false,
+		Optional:     false,
 	}
 }
 
@@ -82,9 +98,12 @@ func (ss *SLASystem) updateSLA(eventDispatcher *events.EventDispatcher) {
 		currentSLA := float64(ss.caughtPackets) / float64(ss.totalPackets) * 100.0
 		remainingErrors := ss.errorBudget - ss.lostPackets
 
-		fmt.Printf("Packet lost! SLA: %.2f%%, Errors remaining: %d/%d\n", currentSLA, remainingErrors, ss.errorBudget)
+		// Only print "Packet lost!" message when packets are actually lost
+		if ss.lostPackets > 0 {
+			fmt.Printf("Packet lost! SLA: %.2f%%, Errors remaining: %d/%d\n", currentSLA, remainingErrors, ss.errorBudget)
+		}
 
-		// Publish SLA update event for UI
+		// Publish SLA update event for UI (for both caught and lost packets)
 		eventDispatcher.Publish(events.NewEvent(events.EventSLAUpdated, &events.EventData{
 			Current:   &currentSLA,
 			Caught:    &ss.caughtPackets,

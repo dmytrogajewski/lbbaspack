@@ -5,6 +5,8 @@ import (
 	"lbbaspack/engine/events"
 )
 
+const SystemTypeBackend SystemType = "backend"
+
 type BackendSystem struct {
 	BaseSystem
 	backendCounters map[int]int // backend ID -> packet count
@@ -20,6 +22,20 @@ func NewBackendSystem() *BackendSystem {
 		},
 		backendCounters: make(map[int]int),
 		totalPackets:    0,
+	}
+}
+
+// GetSystemInfo returns the system metadata for dependency resolution
+func (bs *BackendSystem) GetSystemInfo() *SystemInfo {
+	return &SystemInfo{
+		Type:         SystemTypeBackend,
+		System:       bs,
+		Dependencies: []SystemType{SystemTypeCollision},
+		Conflicts:    []SystemType{},
+		Provides:     []string{"backend_assignment", "load_balancing"},
+		Requires:     []string{},
+		Drawable:     false,
+		Optional:     false,
 	}
 }
 

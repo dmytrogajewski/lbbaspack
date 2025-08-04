@@ -10,6 +10,8 @@ import (
 	"github.com/hajimehoshi/ebiten/v2/vector"
 )
 
+const SystemTypeParticle SystemType = "particle"
+
 type ParticleSystem struct {
 	BaseSystem
 	particles []*components.Particle
@@ -19,6 +21,20 @@ func NewParticleSystem() *ParticleSystem {
 	return &ParticleSystem{
 		BaseSystem: BaseSystem{},
 		particles:  make([]*components.Particle, 0),
+	}
+}
+
+// GetSystemInfo returns the system metadata for dependency resolution
+func (ps *ParticleSystem) GetSystemInfo() *SystemInfo {
+	return &SystemInfo{
+		Type:         SystemTypeParticle,
+		System:       ps,
+		Dependencies: []SystemType{SystemTypeCollision},
+		Conflicts:    []SystemType{},
+		Provides:     []string{"visual_effects", "particle_rendering"},
+		Requires:     []string{},
+		Drawable:     true,
+		Optional:     true,
 	}
 }
 

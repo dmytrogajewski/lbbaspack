@@ -33,6 +33,31 @@ func (w *World) NewEntity() *entities.Entity {
 	return entity
 }
 
+func (w *World) RemoveEntity(entity *entities.Entity) {
+	for i, e := range w.Entities {
+		if e.ID == entity.ID {
+			// Remove entity by swapping with last element and truncating
+			w.Entities[i] = w.Entities[len(w.Entities)-1]
+			w.Entities = w.Entities[:len(w.Entities)-1]
+			return
+		}
+	}
+}
+
+func (w *World) RemoveInactiveEntities() {
+	activeEntities := make([]*entities.Entity, 0, len(w.Entities))
+	for _, entity := range w.Entities {
+		if entity.IsActive() {
+			activeEntities = append(activeEntities, entity)
+		}
+	}
+	w.Entities = activeEntities
+}
+
+func (w *World) ClearAllEntities() {
+	w.Entities = make([]*entities.Entity, 0)
+}
+
 func (w *World) AddSystem(system systems.System) {
 	w.Systems = append(w.Systems, system)
 }

@@ -6,6 +6,8 @@ import (
 	"lbbaspack/engine/events"
 )
 
+const SystemTypeCollision SystemType = "collision"
+
 type CollisionSystem struct {
 	BaseSystem
 	score int
@@ -20,6 +22,20 @@ func NewCollisionSystem() *CollisionSystem {
 			},
 		},
 		score: 0,
+	}
+}
+
+// GetSystemInfo returns the system metadata for dependency resolution
+func (cs *CollisionSystem) GetSystemInfo() *SystemInfo {
+	return &SystemInfo{
+		Type:         SystemTypeCollision,
+		System:       cs,
+		Dependencies: []SystemType{}, // No dependencies - runs independently and checks collisions
+		Conflicts:    []SystemType{},
+		Provides:     []string{"collision_detection", "packet_catching"},
+		Requires:     []string{},
+		Drawable:     false,
+		Optional:     false,
 	}
 }
 

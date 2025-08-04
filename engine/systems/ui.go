@@ -12,6 +12,8 @@ import (
 	"golang.org/x/image/font/basicfont"
 )
 
+const SystemTypeUI SystemType = "ui"
+
 type UISystem struct {
 	BaseSystem
 	score           int

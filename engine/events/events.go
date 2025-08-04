@@ -12,6 +12,7 @@ const (
 	EventPowerUpActivated EventType = "powerup_activated"
 	EventGameOver         EventType = "game_over"
 	EventGameStart        EventType = "game_start"
+	EventReturnToMenu     EventType = "return_to_menu"
 	EventSLAUpdated       EventType = "sla_updated"
 	EventLevelUp          EventType = "level_up"
 	EventDDoSStart        EventType = "ddos_start"

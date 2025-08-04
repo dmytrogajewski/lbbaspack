@@ -9,6 +9,8 @@ import (
 	"golang.org/x/image/font/basicfont"
 )
 
+const SystemTypeMenu SystemType = "menu"
+
 type MenuSystem struct {
 	BaseSystem
 	Screen       *ebiten.Image

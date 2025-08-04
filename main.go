@@ -6,6 +6,7 @@ import (
 
 	"lbbaspack/engine/components"
 	"lbbaspack/engine/ecs"
+	"lbbaspack/engine/entities"
 	"lbbaspack/engine/events"
 	"lbbaspack/engine/systems"
 
@@ -24,7 +25,7 @@ type Game struct {
 	MenuSys         *systems.MenuSystem
 	gameState       components.StateType
 	eventDispatcher *events.EventDispatcher
-	systems         []systems.System
+	systemManager   *systems.SystemManager
 }
 
 func NewGame() *Game {
@@ -59,33 +60,23 @@ func NewGame() *Game {
 	// --- System Initialization ---
 	eventDispatcher := events.NewEventDispatcher()
 
-	// Create systems
-	spawnSys := systems.NewSpawnSystem(func() systems.Entity {
+	// Create system factory and manager
+	systemFactory := systems.NewSystemFactory(func() systems.Entity {
 		return world.NewEntity()
-	})
-	inputSys := systems.NewInputSystem()
-	movementSys := systems.NewMovementSystem()
-	collisionSys := systems.NewCollisionSystem()
-	powerUpSys := systems.NewPowerUpSystem()
-	backendSys := systems.NewBackendSystem()
-	slaSys := systems.NewSLASystem(spawnSys)
-	comboSys := systems.NewComboSystem()
-	gameStateSys := systems.NewGameStateSystem()
-	renderSys := systems.NewRenderSystem()
-	particleSys := systems.NewParticleSystem()
-	routingSys := systems.NewRoutingSystem()
+	}, eventDispatcher)
+
+	systemManager, err := systemFactory.CreateSystemManager()
+	if err != nil {
+		log.Fatalf("Failed to create system manager: %v", err)
+	}
+
+	// Get individual systems for special handling
 	uiSys := systems.NewUISystem(nil)     // Will be set in Draw
 	menuSys := systems.NewMenuSystem(nil) // Will be set in Draw
+	renderSys := systems.NewRenderSystem()
 
-	// Initialize all systems
-	spawnSys.Initialize(eventDispatcher)
-	backendSys.Initialize(eventDispatcher)
-	slaSys.Initialize(eventDispatcher)
-	comboSys.Initialize(eventDispatcher)
-	gameStateSys.Initialize(eventDispatcher)
-	particleSys.Initialize(eventDispatcher)
+	// Initialize UI system
 	uiSys.Initialize(eventDispatcher)
-	routingSys.Initialize(eventDispatcher)
 
 	game := &Game{
 		World:           world,
@@ -95,37 +86,61 @@ func NewGame() *Game {
 		MenuSys:         menuSys,
 		gameState:       components.StateMenu,
 		eventDispatcher: eventDispatcher,
-		systems: []systems.System{
-			spawnSys,
-			inputSys,
-			movementSys,
-			collisionSys,
-			powerUpSys,
-			backendSys,
-			slaSys,
-			comboSys,
-			gameStateSys,
-			particleSys,
-			routingSys,
-		},
+		systemManager:   systemManager,
 	}
 
 	// Set up event handlers after game is created
 	eventDispatcher.Subscribe(events.EventGameStart, func(event *events.Event) {
 		fmt.Println("Game start event received, transitioning to playing state")
+
+		// Clean up any existing game entities (packets, power-ups, etc.)
+		game.cleanupGameEntities()
+
 		// Set SLA parameters based on selected mode
-		if event.Data.SLA != nil {
-			slaSys.SetTargetSLA(*event.Data.SLA)
-		}
-		if event.Data.Errors != nil {
-			slaSys.SetErrorBudget(*event.Data.Errors)
+		if slaSys, err := systemFactory.GetSystemByType(game.systemManager, systems.SystemTypeSLA); err == nil {
+			if slaSystem, ok := slaSys.(*systems.SLASystem); ok {
+				if event.Data.SLA != nil {
+					slaSystem.SetTargetSLA(*event.Data.SLA)
+				}
+				if event.Data.Errors != nil {
+					slaSystem.SetErrorBudget(*event.Data.Errors)
+				}
+			}
 		}
 		game.gameState = components.StatePlaying
+
+		// Ensure load balancer state is updated to playing
+		for _, entity := range game.World.Entities {
+			if entity.HasComponent("State") {
+				stateComp := entity.GetState()
+				if stateComp != nil {
+					stateComp.SetState("playing")
+					fmt.Printf("[Game] Updated entity %d state to playing\n", entity.ID)
+				}
+			}
+		}
 	})
 
 	eventDispatcher.Subscribe(events.EventGameOver, func(event *events.Event) {
 		game.gameState = components.StateGameOver
 		fmt.Println("Game over event received, transitioning to game over state")
+	})
+
+	// Add handler for returning to menu
+	eventDispatcher.Subscribe(events.EventReturnToMenu, func(event *events.Event) {
+		game.gameState = components.StateMenu
+		fmt.Println("Return to menu event received, transitioning to menu state")
+
+		// Reset load balancer state to menu
+		for _, entity := range game.World.Entities {
+			if entity.HasComponent("State") {
+				stateComp := entity.GetState()
+				if stateComp != nil {
+					stateComp.SetState("menu")
+					fmt.Printf("[Game] Reset entity %d state to menu\n", entity.ID)
+				}
+			}
+		}
 	})
 
 	return game
@@ -152,21 +167,29 @@ func (g *Game) Update() error {
 		}
 	case components.StatePlaying:
 		fmt.Println("[Game] In playing state - updating all systems")
-		// Update all systems
+		// Update all systems using the system manager
 		entitiesInterface := make([]systems.Entity, len(g.World.Entities))
 		for i, entity := range g.World.Entities {
 			entitiesInterface[i] = entity
 		}
 
-		for i, system := range g.systems {
-			fmt.Printf("[Game] Updating system %d: %T\n", i, system)
-			system.Update(deltaTime, entitiesInterface, g.eventDispatcher)
-		}
+		g.systemManager.UpdateAll(deltaTime, entitiesInterface, g.eventDispatcher)
+
+		// Update UI system separately since it's not in the system manager
+		g.UISys.Update(deltaTime, entitiesInterface, g.eventDispatcher)
+
+		// Clean up inactive entities after all systems have updated
+		g.World.RemoveInactiveEntities()
 	case components.StateGameOver:
 		fmt.Println("[Game] In game over state")
-		// Game over state - only handle input for restart
-		// For now, just keep the game in this state
-		// TODO: Add restart functionality
+		// Handle escape key to return to menu
+		if ebiten.IsKeyPressed(ebiten.KeyEscape) {
+			fmt.Println("[Game] Escape pressed in game over state, returning to menu")
+			// Clean up game entities when returning to menu
+			g.cleanupGameEntities()
+			// Publish return to menu event
+			g.eventDispatcher.Publish(events.NewEvent(events.EventReturnToMenu, nil))
+		}
 	}
 
 	return nil
@@ -193,15 +216,8 @@ func (g *Game) Draw(screen *ebiten.Image) {
 		}
 		g.RenderSys.UpdateWithScreen(1.0/60.0, entitiesInterface, g.eventDispatcher, screen)
 
-		// Draw particles
-		if particleSys, ok := g.systems[len(g.systems)-2].(*systems.ParticleSystem); ok {
-			particleSys.Draw(screen)
-		}
-
-		// Draw routing
-		if routingSys, ok := g.systems[len(g.systems)-1].(*systems.RoutingSystem); ok {
-			routingSys.Draw(screen)
-		}
+		// Draw particles and routing using system manager
+		g.systemManager.DrawAll(screen, entitiesInterface)
 
 		g.UISys.Draw(screen, entitiesInterface)
 	case components.StateGameOver:
@@ -214,6 +230,31 @@ func (g *Game) Draw(screen *ebiten.Image) {
 
 func (g *Game) Layout(outsideWidth, outsideHeight int) (int, int) {
 	return 800, 600
+}
+
+// cleanupGameEntities removes all game-related entities (packets, power-ups) but keeps the load balancer and backends
+func (g *Game) cleanupGameEntities() {
+	fmt.Println("[Game] Cleaning up game entities...")
+
+	// Keep track of entities to remove
+	entitiesToRemove := make([]*entities.Entity, 0)
+
+	for _, entity := range g.World.Entities {
+		// Check if this is a game entity (packet or power-up) that should be removed
+		if entity.HasComponent("PacketType") || entity.HasComponent("PowerUpType") {
+			entitiesToRemove = append(entitiesToRemove, entity)
+			fmt.Printf("[Game] Marking entity %d for removal (has PacketType or PowerUpType)\n", entity.ID)
+		}
+	}
+
+	// Remove the marked entities
+	for _, entity := range entitiesToRemove {
+		g.World.RemoveEntity(entity)
+		fmt.Printf("[Game] Removed entity %d\n", entity.ID)
+	}
+
+	fmt.Printf("[Game] Cleanup complete. Removed %d entities. World now has %d entities.\n",
+		len(entitiesToRemove), len(g.World.Entities))
 }
 
 func main() {

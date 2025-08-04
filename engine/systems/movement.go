@@ -6,6 +6,8 @@ import (
 	"lbbaspack/engine/events"
 )
 
+const SystemTypeMovement SystemType = "movement"
+
 type MovementSystem struct {
 	BaseSystem
 	callCount int
@@ -20,6 +22,20 @@ func NewMovementSystem() *MovementSystem {
 			},
 		},
 		callCount: 0,
+	}
+}
+
+// GetSystemInfo returns the system metadata for dependency resolution
+func (ms *MovementSystem) GetSystemInfo() *SystemInfo {
+	return &SystemInfo{
+		Type:         SystemTypeMovement,
+		System:       ms,
+		Dependencies: []SystemType{SystemTypeSpawn},
+		Conflicts:    []SystemType{},
+		Provides:     []string{"entity_movement", "physics_update"},
+		Requires:     []string{},
+		Drawable:     false,
+		Optional:     false,
 	}
 }
 

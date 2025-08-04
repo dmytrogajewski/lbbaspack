@@ -6,6 +6,8 @@ import (
 	"lbbaspack/engine/events"
 )
 
+const SystemTypeGameState SystemType = "gamestate"
+
 type GameStateSystem struct {
 	BaseSystem
 	currentState    components.StateType
@@ -27,6 +29,20 @@ func NewGameStateSystem() *GameStateSystem {
 		score:           0,
 		level:           1,
 		lastLevelUpTime: 0.0,
+	}
+}
+
+// GetSystemInfo returns the system metadata for dependency resolution
+func (gss *GameStateSystem) GetSystemInfo() *SystemInfo {
+	return &SystemInfo{
+		Type:         SystemTypeGameState,
+		System:       gss,
+		Dependencies: []SystemType{}, // No dependencies - runs independently and receives events
+		Conflicts:    []SystemType{},
+		Provides:     []string{"game_state_management", "level_progression"},
+		Requires:     []string{},
+		Drawable:     false,
+		Optional:     false,
 	}
 }
 

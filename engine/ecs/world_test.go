@@ -568,6 +568,161 @@ func TestWorld_EdgeCases(t *testing.T) {
 	})
 }
 
+func TestWorld_RemoveEntity(t *testing.T) {
+	world := NewWorld()
+
+	// Add some entities
+	entity1 := world.NewEntity()
+	entity2 := world.NewEntity()
+	entity3 := world.NewEntity()
+
+	initialCount := len(world.Entities)
+	if initialCount != 3 {
+		t.Errorf("Expected 3 entities, got %d", initialCount)
+	}
+
+	// Remove entity2
+	world.RemoveEntity(entity2)
+
+	if len(world.Entities) != 2 {
+		t.Errorf("Expected 2 entities after removal, got %d", len(world.Entities))
+	}
+
+	// Check that entity1 and entity3 are still there
+	found1 := false
+	found3 := false
+	for _, entity := range world.Entities {
+		if entity.ID == entity1.ID {
+			found1 = true
+		}
+		if entity.ID == entity3.ID {
+			found3 = true
+		}
+	}
+
+	if !found1 {
+		t.Error("Entity1 should still be in the world")
+	}
+	if !found3 {
+		t.Error("Entity3 should still be in the world")
+	}
+
+	// Try to remove non-existent entity (should not panic)
+	nonExistentEntity := entities.NewEntity(999)
+	world.RemoveEntity(nonExistentEntity)
+
+	if len(world.Entities) != 2 {
+		t.Errorf("Expected 2 entities after removing non-existent entity, got %d", len(world.Entities))
+	}
+}
+
+func TestWorld_RemoveInactiveEntities(t *testing.T) {
+	world := NewWorld()
+
+	// Add some entities
+	entity1 := world.NewEntity() // Active by default
+	entity2 := world.NewEntity()
+	entity3 := world.NewEntity()
+
+	// Make entity2 inactive
+	entity2.SetActive(false)
+
+	// Verify initial state
+	if !entity1.IsActive() || !entity3.IsActive() {
+		t.Error("Entity1 and Entity3 should be active initially")
+	}
+
+	initialCount := len(world.Entities)
+	if initialCount != 3 {
+		t.Errorf("Expected 3 entities, got %d", initialCount)
+	}
+
+	// Remove inactive entities
+	world.RemoveInactiveEntities()
+
+	if len(world.Entities) != 2 {
+		t.Errorf("Expected 2 entities after removing inactive ones, got %d", len(world.Entities))
+	}
+
+	// Check that only active entities remain
+	for _, entity := range world.Entities {
+		if !entity.IsActive() {
+			t.Errorf("Entity %d should be active", entity.ID)
+		}
+	}
+}
+
+func TestWorld_ClearAllEntities(t *testing.T) {
+	world := NewWorld()
+
+	// Add some entities
+	world.NewEntity()
+	world.NewEntity()
+	world.NewEntity()
+
+	if len(world.Entities) != 3 {
+		t.Errorf("Expected 3 entities, got %d", len(world.Entities))
+	}
+
+	// Clear all entities
+	world.ClearAllEntities()
+
+	if len(world.Entities) != 0 {
+		t.Errorf("Expected 0 entities after clearing, got %d", len(world.Entities))
+	}
+}
+
+func TestWorld_EntityCleanup_Integration(t *testing.T) {
+	world := NewWorld()
+
+	// Create a load balancer (should persist)
+	loadBalancer := world.NewEntity()
+	loadBalancer.AddComponent(components.NewTransform(350, 480))
+	loadBalancer.AddComponent(components.NewSprite(100, 20, components.RandomPacketColor()))
+	loadBalancer.AddComponent(components.NewCollider(100, 20, "loadbalancer"))
+
+	// Create some packets (should be removed when inactive)
+	packet1 := world.NewEntity()
+	packet1.AddComponent(components.NewTransform(100, 100))
+	packet1.AddComponent(components.NewPacketType("HTTP", 10))
+
+	packet2 := world.NewEntity()
+	packet2.AddComponent(components.NewTransform(200, 200))
+	packet2.AddComponent(components.NewPacketType("HTTPS", 15))
+
+	// Create a power-up (should be removed when inactive)
+	powerUp := world.NewEntity()
+	powerUp.AddComponent(components.NewTransform(300, 300))
+	powerUp.AddComponent(components.NewPowerUpType("SpeedBoost", 15.0))
+
+	initialCount := len(world.Entities)
+	if initialCount != 4 {
+		t.Errorf("Expected 4 entities initially, got %d", initialCount)
+	}
+
+	// Deactivate packets and power-up
+	packet1.SetActive(false)
+	packet2.SetActive(false)
+	powerUp.SetActive(false)
+
+	// Remove inactive entities
+	world.RemoveInactiveEntities()
+
+	if len(world.Entities) != 1 {
+		t.Errorf("Expected 1 entity after cleanup (load balancer), got %d", len(world.Entities))
+	}
+
+	// Check that only the load balancer remains
+	remainingEntity := world.Entities[0]
+	if remainingEntity.ID != loadBalancer.ID {
+		t.Errorf("Expected load balancer to remain, got entity %d", remainingEntity.ID)
+	}
+
+	if !remainingEntity.IsActive() {
+		t.Error("Load balancer should still be active")
+	}
+}
+
 // Benchmark tests for performance
 func BenchmarkNewWorld(b *testing.B) {
 	for i := 0; i < b.N; i++ {

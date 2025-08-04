@@ -31,6 +31,13 @@ type System interface {
 	GetRequiredComponents() []string
 }
 
+// SystemInfoer interface allows systems to provide their own metadata
+// This decouples the factory from hardcoded SystemInfo structs
+type SystemInfoer interface {
+	System
+	GetSystemInfo() *SystemInfo
+}
+
 // BaseSystem provides common functionality for systems
 type BaseSystem struct {
 	RequiredComponents []string

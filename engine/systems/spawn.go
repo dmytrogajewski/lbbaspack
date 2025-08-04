@@ -8,6 +8,8 @@ import (
 	"math/rand"
 )
 
+const SystemTypeSpawn SystemType = "spawn"
+
 // SpawnSystem manages the spawning of packets and power-ups in the game.
 // It handles spawn timing, level progression, DDoS attacks, and entity creation.
 type SpawnSystem struct {
@@ -32,7 +34,7 @@ type SpawnSystem struct {
 // The spawnCallback function is used to create new entities when spawning is needed.
 func NewSpawnSystem(spawnCallback func() Entity) *SpawnSystem {
 	return &SpawnSystem{
-		BaseSystem:       BaseSystem{},
+		BaseSystem:       BaseSystem{RequiredComponents: []string{}},
 		lastPacketSpawn:  0,
 		packetSpawnRate:  1.0,
 		lastPowerUpSpawn: 0,
@@ -45,6 +47,20 @@ func NewSpawnSystem(spawnCallback func() Entity) *SpawnSystem {
 		ddosDuration:     5.0,
 		ddosMultiplier:   10.0,
 		ddosCooldown:     10.0,
+	}
+}
+
+// GetSystemInfo returns the system metadata for dependency resolution
+func (ss *SpawnSystem) GetSystemInfo() *SystemInfo {
+	return &SystemInfo{
+		Type:         SystemTypeSpawn,
+		System:       ss,
+		Dependencies: []SystemType{},
+		Conflicts:    []SystemType{},
+		Provides:     []string{"entity_spawning", "packet_generation"},
+		Requires:     []string{},
+		Drawable:     false,
+		Optional:     false,
 	}
 }
 
