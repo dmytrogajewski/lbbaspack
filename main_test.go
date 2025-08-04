@@ -9,7 +9,8 @@ import (
 
 // Helper to check if an image is all black (or nearly black)
 func isAllBlack(img *ebiten.Image) bool {
-	w, h := img.Size()
+	bounds := img.Bounds()
+	w, h := bounds.Dx(), bounds.Dy()
 	pixels := make([]byte, 4*w*h)
 	img.ReadPixels(pixels)
 	for i := 0; i < len(pixels); i += 4 {
@@ -38,7 +39,13 @@ func (tg *TestGame) Update() error {
 		tg.captured = true
 	}
 	if tg.frame > tg.maxFrame {
-		close(tg.done)
+		// Use select to avoid closing an already closed channel
+		select {
+		case <-tg.done:
+			// Channel already closed, do nothing
+		default:
+			close(tg.done)
+		}
 	}
 	return tg.Game.Update()
 }
@@ -46,7 +53,8 @@ func (tg *TestGame) Update() error {
 func (tg *TestGame) Draw(screen *ebiten.Image) {
 	tg.Game.Draw(screen)
 	if tg.captured && tg.img == nil {
-		w, h := screen.Size()
+		bounds := screen.Bounds()
+		w, h := bounds.Dx(), bounds.Dy()
 		tg.img = ebiten.NewImage(w, h)
 		tg.img.DrawImage(screen, nil)
 	}
@@ -66,7 +74,9 @@ func TestGameRendersNonBlack(t *testing.T) {
 	}
 
 	go func() {
-		ebiten.RunGame(tg)
+		if err := ebiten.RunGame(tg); err != nil {
+			t.Errorf("Expected no error from ebiten.RunGame, got %v", err)
+		}
 	}()
 
 	select {

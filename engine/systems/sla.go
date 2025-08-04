@@ -2,7 +2,6 @@ package systems
 
 import (
 	"fmt"
-	"lbbaspack/engine/components"
 	"lbbaspack/engine/events"
 )
 
@@ -37,10 +36,7 @@ func (ss *SLASystem) Update(deltaTime float64, entities []Entity, eventDispatche
 		if slaComp == nil {
 			continue
 		}
-		sla, ok := slaComp.(components.SLAComponent)
-		if !ok {
-			continue
-		}
+		sla := slaComp
 
 		// Calculate current SLA percentage
 		if ss.totalPackets > 0 {

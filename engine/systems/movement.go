@@ -35,11 +35,8 @@ func (ms *MovementSystem) Update(deltaTime float64, entities []Entity, eventDisp
 			continue
 		}
 
-		transform, ok1 := transformComp.(components.TransformComponent)
-		physics, ok2 := physicsComp.(components.PhysicsComponent)
-		if !ok1 || !ok2 {
-			continue
-		}
+		transform := transformComp
+		physics := physicsComp
 
 		// Update physics
 		physicsObj := physicsComp.(*components.Physics)

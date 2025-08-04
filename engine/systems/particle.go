@@ -7,7 +7,7 @@ import (
 	"math/rand"
 
 	"github.com/hajimehoshi/ebiten/v2"
-	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
+	"github.com/hajimehoshi/ebiten/v2/vector"
 )
 
 type ParticleSystem struct {
@@ -46,7 +46,7 @@ func (ps *ParticleSystem) Draw(screen *ebiten.Image) {
 				B: particle.Color.B,
 				A: alpha,
 			}
-			ebitenutil.DrawCircle(screen, particle.X, particle.Y, particle.Size, particleColor)
+			vector.DrawFilledCircle(screen, float32(particle.X), float32(particle.Y), float32(particle.Size), particleColor, false)
 		}
 	}
 }
@@ -54,7 +54,7 @@ func (ps *ParticleSystem) Draw(screen *ebiten.Image) {
 // CreatePacketCatchEffect creates particle effect when packet is caught
 func (ps *ParticleSystem) CreatePacketCatchEffect(x, y float64, packetColor color.RGBA) {
 	// Create multiple particles in a burst
-	for i := 0; i < 8; i++ {
+	for range 8 {
 		speed := 50.0 + rand.Float64()*50.0
 		vx := speed * float64(rand.Float64()-0.5)
 		vy := speed * float64(rand.Float64()-0.5)
@@ -89,11 +89,7 @@ func (ps *ParticleSystem) Initialize(eventDispatcher *events.EventDispatcher) {
 				transformComp := packetEntity.GetTransform()
 				spriteComp := packetEntity.GetSprite()
 				if transformComp != nil && spriteComp != nil {
-					transform, ok1 := transformComp.(components.TransformComponent)
-					sprite, ok2 := spriteComp.(components.SpriteComponent)
-					if ok1 && ok2 {
-						ps.CreatePacketCatchEffect(transform.GetX()+7.5, transform.GetY()+7.5, sprite.GetColor())
-					}
+					ps.CreatePacketCatchEffect(transformComp.GetX()+7.5, transformComp.GetY()+7.5, spriteComp.GetColor())
 				}
 			}
 		}
@@ -105,11 +101,7 @@ func (ps *ParticleSystem) Initialize(eventDispatcher *events.EventDispatcher) {
 				transformComp := powerupEntity.GetTransform()
 				spriteComp := powerupEntity.GetSprite()
 				if transformComp != nil && spriteComp != nil {
-					transform, ok1 := transformComp.(components.TransformComponent)
-					sprite, ok2 := spriteComp.(components.SpriteComponent)
-					if ok1 && ok2 {
-						ps.CreatePowerUpEffect(transform.GetX()+7.5, transform.GetY()+7.5, sprite.GetColor())
-					}
+					ps.CreatePowerUpEffect(transformComp.GetX()+7.5, transformComp.GetY()+7.5, spriteComp.GetColor())
 				}
 			}
 		}

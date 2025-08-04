@@ -73,26 +73,7 @@ help: ## Show this help message
 	@echo "  make run       # Run the application"
 	@echo "  make clean     # Clean build artifacts"
 
-# Build targets
-.PHONY: build
-build: $(BIN_DIR) ## Build the application
-	@echo "Building $(BINARY_NAME) version $(VERSION)..."
-	$(GOBUILD) $(LDFLAGS) -o $(BINARY) $(MAIN_FILE)
-	@echo "Build complete: $(BINARY)"
 
-.PHONY: build-release
-build-release: $(DIST_DIR) ## Build release version with optimizations
-	@echo "Building release version $(VERSION)..."
-	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 $(GOBUILD) $(LDFLAGS) -a -installsuffix cgo -o $(DIST_BINARY)-linux-amd64 $(MAIN_FILE)
-	CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 $(GOBUILD) $(LDFLAGS) -a -installsuffix cgo -o $(DIST_BINARY)-darwin-amd64 $(MAIN_FILE)
-	CGO_ENABLED=0 GOOS=windows GOARCH=amd64 $(GOBUILD) $(LDFLAGS) -a -installsuffix cgo -o $(DIST_BINARY)-windows-amd64.exe $(MAIN_FILE)
-	@echo "Release builds complete in $(DIST_DIR)"
-
-.PHONY: build-debug
-build-debug: $(BIN_DIR) ## Build debug version with symbols
-	@echo "Building debug version..."
-	$(GOBUILD) $(LDFLAGS) -gcflags="all=-N -l" -o $(BINARY)-debug $(MAIN_FILE)
-	@echo "Debug build complete: $(BINARY)-debug"
 
 # Test targets
 .PHONY: test

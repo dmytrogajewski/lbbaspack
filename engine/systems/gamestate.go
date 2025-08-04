@@ -39,10 +39,7 @@ func (gss *GameStateSystem) Update(deltaTime float64, entities []Entity, eventDi
 		if stateComp == nil {
 			continue
 		}
-		state, ok := stateComp.(components.StateComponent)
-		if !ok {
-			continue
-		}
+		state := stateComp
 		state.SetState(gss.getStateString())
 	}
 

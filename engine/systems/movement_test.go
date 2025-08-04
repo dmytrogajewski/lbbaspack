@@ -78,7 +78,7 @@ func TestMovementSystem_Update_EntityWithoutRequiredComponents(t *testing.T) {
 		t.Fatal("Expected transform component to exist")
 	}
 
-	transformObj := transformComp.(components.TransformComponent)
+	transformObj := transformComp
 	x, y := transformObj.GetX(), transformObj.GetY()
 	if math.Abs(x-100) > tolerance || math.Abs(y-100) > tolerance {
 		t.Errorf("Expected position to remain (100, 100), got (%f, %f)", x, y)
@@ -126,7 +126,7 @@ func TestMovementSystem_Update_EntityWithBothComponents(t *testing.T) {
 
 	// Verify transform position was updated based on physics
 	transformComp := entity.GetTransform()
-	transformObj := transformComp.(components.TransformComponent)
+	transformObj := transformComp
 	x, y := transformObj.GetX(), transformObj.GetY()
 
 	// Expected position: (100 + 10*0.016, 100 + 5*0.016) = (100.16, 100.08)
@@ -156,7 +156,7 @@ func TestMovementSystem_Update_EntityWithZeroVelocity(t *testing.T) {
 
 	// Verify transform position remains unchanged
 	transformComp := entity.GetTransform()
-	transformObj := transformComp.(components.TransformComponent)
+	transformObj := transformComp
 	x, y := transformObj.GetX(), transformObj.GetY()
 
 	if math.Abs(x-100) > tolerance || math.Abs(y-100) > tolerance {
@@ -178,7 +178,7 @@ func TestMovementSystem_Update_EntityWithNegativeVelocity(t *testing.T) {
 
 	// Verify transform position was updated correctly
 	transformComp := entity.GetTransform()
-	transformObj := transformComp.(components.TransformComponent)
+	transformObj := transformComp
 	x, y := transformObj.GetX(), transformObj.GetY()
 
 	// Expected position: (100 + (-10)*0.016, 100 + (-5)*0.016) = (99.84, 99.92)
@@ -209,7 +209,7 @@ func TestMovementSystem_Update_MultipleEntities(t *testing.T) {
 	ms.Update(0.016, entities, eventDispatcher)
 
 	// Verify all entities were processed correctly
-	transform1 := entity1.GetTransform().(components.TransformComponent)
+	transform1 := entity1.GetTransform()
 	x1, y1 := transform1.GetX(), transform1.GetY()
 	expectedX1 := 100.0 + 10.0*0.016
 	expectedY1 := 100.0 + 5.0*0.016
@@ -217,7 +217,7 @@ func TestMovementSystem_Update_MultipleEntities(t *testing.T) {
 		t.Errorf("Entity1: Expected position (%f, %f), got (%f, %f)", expectedX1, expectedY1, x1, y1)
 	}
 
-	transform2 := entity2.GetTransform().(components.TransformComponent)
+	transform2 := entity2.GetTransform()
 	x2, y2 := transform2.GetX(), transform2.GetY()
 	expectedX2 := 200.0 + (-5.0)*0.016
 	expectedY2 := 200.0 + 10.0*0.016
@@ -225,7 +225,7 @@ func TestMovementSystem_Update_MultipleEntities(t *testing.T) {
 		t.Errorf("Entity2: Expected position (%f, %f), got (%f, %f)", expectedX2, expectedY2, x2, y2)
 	}
 
-	transform3 := entity3.GetTransform().(components.TransformComponent)
+	transform3 := entity3.GetTransform()
 	x3, y3 := transform3.GetX(), transform3.GetY()
 	if math.Abs(x3-300) > tolerance || math.Abs(y3-300) > tolerance {
 		t.Errorf("Entity3: Expected position (300, 300), got (%f, %f)", x3, y3)
@@ -254,7 +254,7 @@ func TestMovementSystem_Update_EntityWithPacketType(t *testing.T) {
 
 	// Verify transform position was updated
 	transformComp := entity.GetTransform()
-	transformObj := transformComp.(components.TransformComponent)
+	transformObj := transformComp
 	x, y := transformObj.GetX(), transformObj.GetY()
 
 	expectedX := 100.0 + 10.0*0.016
@@ -327,7 +327,7 @@ func TestMovementSystem_Update_ZeroDeltaTime(t *testing.T) {
 
 	// Verify transform position remains unchanged
 	transformComp := entity.GetTransform()
-	transformObj := transformComp.(components.TransformComponent)
+	transformObj := transformComp
 	x, y := transformObj.GetX(), transformObj.GetY()
 
 	if math.Abs(x-100) > tolerance || math.Abs(y-100) > tolerance {
@@ -349,7 +349,7 @@ func TestMovementSystem_Update_LargeDeltaTime(t *testing.T) {
 
 	// Verify transform position was updated with large movement
 	transformComp := entity.GetTransform()
-	transformObj := transformComp.(components.TransformComponent)
+	transformObj := transformComp
 	x, y := transformObj.GetX(), transformObj.GetY()
 
 	// Expected position: (100 + 10*1.0, 100 + 5*1.0) = (110, 105)
@@ -379,7 +379,7 @@ func TestMovementSystem_Update_NegativeDeltaTime(t *testing.T) {
 
 	// Verify transform position was updated (negative delta time should still move)
 	transformComp := entity.GetTransform()
-	transformObj := transformComp.(components.TransformComponent)
+	transformObj := transformComp
 	x, y := transformObj.GetX(), transformObj.GetY()
 
 	// Expected position: (100 + 10*(-0.016), 100 + 5*(-0.016)) = (99.84, 99.92)
@@ -416,7 +416,7 @@ func TestMovementSystem_Update_MultipleUpdates(t *testing.T) {
 
 	// Verify transform position was updated correctly
 	transformComp := entity.GetTransform()
-	transformObj := transformComp.(components.TransformComponent)
+	transformObj := transformComp
 	x, y := transformObj.GetX(), transformObj.GetY()
 
 	// Expected position after 5 updates: (100 + 10*0.016*5, 100 + 5*0.016*5) = (100.8, 100.4)
@@ -443,7 +443,7 @@ func TestMovementSystem_Update_PhysicsUpdateCalled(t *testing.T) {
 
 	// Get initial physics state
 	physicsComp := entity.GetPhysics()
-	physicsObj := physicsComp.(components.PhysicsComponent)
+	physicsObj := physicsComp
 	initialVX := physicsObj.GetVelocityX()
 	initialVY := physicsObj.GetVelocityY()
 
@@ -471,7 +471,7 @@ func TestMovementSystem_Update_PhysicsWithAcceleration(t *testing.T) {
 	// Create entity with velocity and apply acceleration
 	entity := createMovementEntity(1, 100, 100, 10, 5)
 	physicsComp := entity.GetPhysics()
-	physicsObj := physicsComp.(components.PhysicsComponent)
+	physicsObj := physicsComp
 
 	// Apply force to create acceleration
 	physicsObj.(*components.Physics).ApplyForce(5, 2)
@@ -574,7 +574,7 @@ func TestMovementSystem_Integration(t *testing.T) {
 	}
 
 	// Verify all entities were processed correctly
-	transform1 := entity1.GetTransform().(components.TransformComponent)
+	transform1 := entity1.GetTransform()
 	x1, y1 := transform1.GetX(), transform1.GetY()
 	expectedX1 := 100.0 + 10.0*0.016*10
 	expectedY1 := 100.0 + 5.0*0.016*10
@@ -582,13 +582,13 @@ func TestMovementSystem_Integration(t *testing.T) {
 		t.Errorf("Entity1: Expected position (%f, %f), got (%f, %f)", expectedX1, expectedY1, x1, y1)
 	}
 
-	transform2 := entity2.GetTransform().(components.TransformComponent)
+	transform2 := entity2.GetTransform()
 	x2, y2 := transform2.GetX(), transform2.GetY()
 	if math.Abs(x2-200) > tolerance || math.Abs(y2-200) > tolerance {
 		t.Errorf("Entity2: Expected position (200, 200), got (%f, %f)", x2, y2)
 	}
 
-	transform3 := entity3.GetTransform().(components.TransformComponent)
+	transform3 := entity3.GetTransform()
 	x3, y3 := transform3.GetX(), transform3.GetY()
 	expectedX3 := 300.0 + (-5.0)*0.016*10
 	expectedY3 := 300.0 + 10.0*0.016*10

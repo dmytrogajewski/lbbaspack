@@ -91,7 +91,7 @@ func TestInputSystem_Update_EntityWithTransformOnly(t *testing.T) {
 		t.Fatal("Expected transform component to exist")
 	}
 
-	transformObj := transformComp.(components.TransformComponent)
+	transformObj := transformComp
 	x, y := transformObj.GetX(), transformObj.GetY()
 	if x != 100 || y != 100 {
 		t.Errorf("Expected position to remain (100, 100), got (%f, %f)", x, y)
@@ -131,7 +131,7 @@ func TestInputSystem_Update_EntityWithBothComponents_NotPlaying(t *testing.T) {
 	// Verify transform position remains unchanged
 	// (since not in playing state, input should not be processed)
 	transformComp := entity.GetTransform()
-	transformObj := transformComp.(components.TransformComponent)
+	transformObj := transformComp
 	x, y := transformObj.GetX(), transformObj.GetY()
 	if x != 100 || y != 100 {
 		t.Errorf("Expected position to remain (100, 100), got (%f, %f)", x, y)
@@ -153,7 +153,7 @@ func TestInputSystem_Update_EntityWithBothComponents_GameOver(t *testing.T) {
 	// Verify transform position remains unchanged
 	// (since not in playing state, input should not be processed)
 	transformComp := entity.GetTransform()
-	transformObj := transformComp.(components.TransformComponent)
+	transformObj := transformComp
 	x, y := transformObj.GetX(), transformObj.GetY()
 	if x != 100 || y != 100 {
 		t.Errorf("Expected position to remain (100, 100), got (%f, %f)", x, y)
@@ -200,13 +200,13 @@ func TestInputSystem_Update_MultipleEntities(t *testing.T) {
 
 	// Verify only the playing entity was processed
 	// The other entities should remain unchanged
-	transform2 := entity2.GetTransform().(components.TransformComponent)
+	transform2 := entity2.GetTransform()
 	x2, y2 := transform2.GetX(), transform2.GetY()
 	if x2 != 200 || y2 != 200 {
 		t.Errorf("Expected entity2 position to remain (200, 200), got (%f, %f)", x2, y2)
 	}
 
-	transform3 := entity3.GetTransform().(components.TransformComponent)
+	transform3 := entity3.GetTransform()
 	x3, y3 := transform3.GetX(), transform3.GetY()
 	if x3 != 300 || y3 != 300 {
 		t.Errorf("Expected entity3 position to remain (300, 300), got (%f, %f)", x3, y3)
@@ -263,7 +263,7 @@ func TestInputSystem_Update_EntityStateTransition(t *testing.T) {
 
 	// Verify position unchanged
 	transformComp := entity.GetTransform()
-	transformObj := transformComp.(components.TransformComponent)
+	transformObj := transformComp
 	x1, y1 := transformObj.GetX(), transformObj.GetY()
 	if x1 != 100 || y1 != 100 {
 		t.Errorf("Expected position to remain (100, 100) in menu state, got (%f, %f)", x1, y1)
@@ -271,7 +271,7 @@ func TestInputSystem_Update_EntityStateTransition(t *testing.T) {
 
 	// Change to playing state
 	stateComp := entity.GetState()
-	stateObj := stateComp.(components.StateComponent)
+	stateObj := stateComp
 	stateObj.SetState("playing")
 
 	// Run update in playing state
@@ -279,7 +279,7 @@ func TestInputSystem_Update_EntityStateTransition(t *testing.T) {
 
 	// Verify position was processed (though actual value depends on ebiten)
 	// We just verify the system doesn't crash and processes the entity
-	transformObj2 := entity.GetTransform().(components.TransformComponent)
+	transformObj2 := entity.GetTransform()
 	if transformObj2 == nil {
 		t.Fatal("Expected transform component to still exist after state transition")
 	}
@@ -299,7 +299,7 @@ func TestInputSystem_Update_EntityStateTransitionBack(t *testing.T) {
 
 	// Change back to menu state
 	stateComp := entity.GetState()
-	stateObj := stateComp.(components.StateComponent)
+	stateObj := stateComp
 	stateObj.SetState("menu")
 
 	// Run update in menu state
@@ -377,20 +377,20 @@ func TestInputSystem_Integration(t *testing.T) {
 	}
 
 	// Verify menu and game over entities remain unchanged
-	menuTransform := menuEntity.GetTransform().(components.TransformComponent)
+	menuTransform := menuEntity.GetTransform()
 	mx, my := menuTransform.GetX(), menuTransform.GetY()
 	if mx != 200 || my != 200 {
 		t.Errorf("Expected menu entity position to remain (200, 200), got (%f, %f)", mx, my)
 	}
 
-	gameOverTransform := gameOverEntity.GetTransform().(components.TransformComponent)
+	gameOverTransform := gameOverEntity.GetTransform()
 	gx, gy := gameOverTransform.GetX(), gameOverTransform.GetY()
 	if gx != 300 || gy != 300 {
 		t.Errorf("Expected game over entity position to remain (300, 300), got (%f, %f)", gx, gy)
 	}
 
 	// Verify playing entity was processed (though actual position depends on ebiten)
-	playingTransform := playingEntity.GetTransform().(components.TransformComponent)
+	playingTransform := playingEntity.GetTransform()
 	if playingTransform == nil {
 		t.Fatal("Expected playing entity transform to still exist")
 	}

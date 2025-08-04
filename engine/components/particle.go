@@ -46,8 +46,5 @@ func (p *Particle) GetAlpha() uint8 {
 		return 255
 	}
 	alpha := uint8((p.Life / p.MaxLife) * 255)
-	if alpha > 255 {
-		alpha = 255
-	}
 	return alpha
 }

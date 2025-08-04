@@ -117,10 +117,7 @@ func TestSLASystem_Update_EntityWithSLAComponent(t *testing.T) {
 		t.Fatal("Expected SLA component to exist")
 	}
 
-	slaComponent, ok := slaComp.(components.SLAComponent)
-	if !ok {
-		t.Fatal("Expected SLA component to implement SLAComponent interface")
-	}
+	slaComponent := slaComp
 
 	// Check current SLA calculation (8/10 = 80%)
 	expectedCurrent := 80.0
@@ -196,10 +193,7 @@ func TestSLASystem_Update_ZeroTotalPackets(t *testing.T) {
 		t.Fatal("Expected SLA component to exist")
 	}
 
-	slaComponent, ok := slaComp.(components.SLAComponent)
-	if !ok {
-		t.Fatal("Expected SLA component to implement SLAComponent interface")
-	}
+	slaComponent := slaComp
 
 	// Should remain at initial value (100.0)
 	expectedCurrent := 100.0
@@ -240,10 +234,7 @@ func TestSLASystem_Update_SLAViolation(t *testing.T) {
 		t.Fatal("Expected SLA component to exist")
 	}
 
-	slaComponent, ok := slaComp.(components.SLAComponent)
-	if !ok {
-		t.Fatal("Expected SLA component to implement SLAComponent interface")
-	}
+	slaComponent := slaComp
 
 	// Check current SLA calculation (8/10 = 80%)
 	expectedCurrent := 80.0
@@ -559,10 +550,7 @@ func TestSLASystem_Integration(t *testing.T) {
 		t.Fatal("Expected SLA component to exist")
 	}
 
-	slaComponent, ok := slaComp.(components.SLAComponent)
-	if !ok {
-		t.Fatal("Expected SLA component to implement SLAComponent interface")
-	}
+	slaComponent := slaComp
 
 	// Check current SLA calculation (1/2 = 50%)
 	expectedCurrent := 50.0

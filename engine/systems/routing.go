@@ -2,11 +2,10 @@ package systems
 
 import (
 	"image/color"
-	"lbbaspack/engine/components"
 	"lbbaspack/engine/events"
 
 	"github.com/hajimehoshi/ebiten/v2"
-	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
+	"github.com/hajimehoshi/ebiten/v2/vector"
 )
 
 type RoutingSystem struct {
@@ -63,16 +62,16 @@ func (rs *RoutingSystem) Draw(screen *ebiten.Image) {
 			currentY := route.StartY + (route.EndY-route.StartY)*route.Progress
 
 			// Draw thicker line from start to current position
-			ebitenutil.DrawLine(screen, route.StartX, route.StartY, currentX, currentY, route.Color)
+			vector.StrokeLine(screen, float32(route.StartX), float32(route.StartY), float32(currentX), float32(currentY), 2, route.Color, false)
 
 			// Draw packet at current position with larger size
-			ebitenutil.DrawCircle(screen, currentX, currentY, 4, route.Color)
+			vector.DrawFilledCircle(screen, float32(currentX), float32(currentY), 4, route.Color, false)
 
 			// Draw a small trail effect
 			if route.Progress > 0.1 {
 				trailX := route.StartX + (route.EndX-route.StartX)*(route.Progress-0.1)
 				trailY := route.StartY + (route.EndY-route.StartY)*(route.Progress-0.1)
-				ebitenutil.DrawCircle(screen, trailX, trailY, 2, route.Color)
+				vector.DrawFilledCircle(screen, float32(trailX), float32(trailY), 2, route.Color, false)
 			}
 		}
 	}
@@ -104,11 +103,8 @@ func (rs *RoutingSystem) Initialize(eventDispatcher *events.EventDispatcher) {
 					return
 				}
 
-				transform, ok1 := transformComp.(components.TransformComponent)
-				sprite, ok2 := spriteComp.(components.SpriteComponent)
-				if !ok1 || !ok2 {
-					return
-				}
+				transform := transformComp
+				sprite := spriteComp
 
 				// Find target backend using round-robin
 				// We'll need to track which backend to send to next

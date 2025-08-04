@@ -2,7 +2,6 @@ package systems
 
 import (
 	"fmt"
-	"lbbaspack/engine/components"
 	"lbbaspack/engine/events"
 )
 
@@ -31,10 +30,7 @@ func (bs *BackendSystem) Update(deltaTime float64, entities []Entity, eventDispa
 		if backendComp == nil {
 			continue
 		}
-		backend, ok := backendComp.(components.BackendAssignmentComponent)
-		if !ok {
-			continue
-		}
+		backend := backendComp
 
 		// Update the global counter for this backend
 		bs.backendCounters[backend.GetBackendID()] = backend.GetAssignedPackets()

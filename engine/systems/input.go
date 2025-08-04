@@ -35,11 +35,8 @@ func (is *InputSystem) Update(deltaTime float64, entities []Entity, eventDispatc
 			continue
 		}
 
-		transform, ok1 := transformComp.(components.TransformComponent)
-		state, ok2 := stateComp.(components.StateComponent)
-		if !ok1 || !ok2 {
-			continue
-		}
+		transform := transformComp
+		state := stateComp
 
 		// Only process input if game is in playing state
 		if state.GetState() == "playing" {

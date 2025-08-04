@@ -92,7 +92,7 @@ func TestGameStateSystem_Update_WithEntities(t *testing.T) {
 		t.Fatal("Expected state component to exist")
 	}
 
-	state := stateComp.(components.StateComponent)
+	state := stateComp
 	if state.GetState() != "menu" {
 		t.Errorf("Expected state to be 'menu', got %s", state.GetState())
 	}
@@ -120,7 +120,7 @@ func TestGameStateSystem_Update_PlayingState(t *testing.T) {
 
 	// Verify state component was updated
 	stateComp := entity.GetState()
-	state := stateComp.(components.StateComponent)
+	state := stateComp
 	if state.GetState() != "playing" {
 		t.Errorf("Expected state to be 'playing', got %s", state.GetState())
 	}
@@ -148,7 +148,7 @@ func TestGameStateSystem_Update_GameOverState(t *testing.T) {
 
 	// Verify state component was updated
 	stateComp := entity.GetState()
-	state := stateComp.(components.StateComponent)
+	state := stateComp
 	if state.GetState() != "gameover" {
 		t.Errorf("Expected state to be 'gameover', got %s", state.GetState())
 	}

@@ -6,11 +6,9 @@ import (
 	"lbbaspack/engine/events"
 
 	"github.com/hajimehoshi/ebiten/v2"
-	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
 	"github.com/hajimehoshi/ebiten/v2/text"
+	"github.com/hajimehoshi/ebiten/v2/vector"
 	"golang.org/x/image/font/basicfont"
-
-	"lbbaspack/engine/components"
 )
 
 type RenderSystem struct {
@@ -44,7 +42,7 @@ func (rs *RenderSystem) UpdateWithScreen(deltaTime float64, entities []Entity, e
 		if activeEntity, ok := entity.(interface{ IsActive() bool }); ok && activeEntity.IsActive() {
 			activeCount++
 			if spriteComp := entity.GetSprite(); spriteComp != nil {
-				if sprite, ok := spriteComp.(components.SpriteComponent); ok && sprite.IsVisible() {
+				if spriteComp.IsVisible() {
 					visibleCount++
 				}
 			}
@@ -59,13 +57,11 @@ func (rs *RenderSystem) UpdateWithScreen(deltaTime float64, entities []Entity, e
 			transformComp := entity.GetTransform()
 			spriteComp := entity.GetSprite()
 			if transformComp != nil && spriteComp != nil {
-				transform, ok1 := transformComp.(components.TransformComponent)
-				sprite, ok2 := spriteComp.(components.SpriteComponent)
-				if ok1 && ok2 && sprite.IsVisible() {
+				if spriteComp.IsVisible() {
 					if entityInterface, ok := entity.(interface{ GetComponentNames() []string }); ok {
-						fmt.Printf("[RenderSystem] Rendering entity at (%.1f, %.1f) with components: %v\n", transform.GetX(), transform.GetY(), entityInterface.GetComponentNames())
+						fmt.Printf("[RenderSystem] Rendering entity at (%.1f, %.1f) with components: %v\n", transformComp.GetX(), transformComp.GetY(), entityInterface.GetComponentNames())
 					}
-					ebitenutil.DrawRect(screen, transform.GetX(), transform.GetY(), sprite.GetWidth(), sprite.GetHeight(), sprite.GetColor())
+					vector.DrawFilledRect(screen, float32(transformComp.GetX()), float32(transformComp.GetY()), float32(spriteComp.GetWidth()), float32(spriteComp.GetHeight()), spriteComp.GetColor(), false)
 
 					// Draw labels
 					label := ""
@@ -73,54 +69,46 @@ func (rs *RenderSystem) UpdateWithScreen(deltaTime float64, entities []Entity, e
 					// Debug: List all component names for this entity
 					if entityInterface, ok := entity.(interface{ GetComponentNames() []string }); ok {
 						componentNames := entityInterface.GetComponentNames()
-						fmt.Printf("[RenderSystem] Entity at (%.1f, %.1f) has components: %v\n", transform.GetX(), transform.GetY(), componentNames)
+						fmt.Printf("[RenderSystem] Entity at (%.1f, %.1f) has components: %v\n", transformComp.GetX(), transformComp.GetY(), componentNames)
 					}
 
 					if colliderComp := entity.GetCollider(); colliderComp != nil {
-						if collider, ok := colliderComp.(components.ColliderComponent); ok {
-							fmt.Printf("[RenderSystem] Entity has collider with tag: %s\n", collider.GetTag())
-							if collider.GetTag() == "packet" {
-								// Get packet type for proper label
-								if packetTypeComp := entity.GetPacketType(); packetTypeComp != nil {
-									if packetType, ok := packetTypeComp.(components.PacketTypeComponent); ok {
-										label = packetType.GetName() // Show actual packet type (HTTP, TCP, etc.)
-										fmt.Printf("[RenderSystem] Drawing packet label: %s at (%.1f, %.1f)\n", label, transform.GetX(), transform.GetY())
-									}
-								} else {
-									label = "packet"
-									fmt.Printf("[RenderSystem] Drawing generic packet label at (%.1f, %.1f)\n", transform.GetX(), transform.GetY())
-								}
-							} else if collider.GetTag() == "loadbalancer" {
-								label = "LBaaS"
-								fmt.Printf("[RenderSystem] Drawing LBaaS label at (%.1f, %.1f)\n", transform.GetX(), transform.GetY())
-							} else if collider.GetTag() == "backend" {
-								// Backend labels are handled by the BackendAssignment component
-								fmt.Printf("[RenderSystem] Found backend entity at (%.1f, %.1f)\n", transform.GetX(), transform.GetY())
+						fmt.Printf("[RenderSystem] Entity has collider with tag: %s\n", colliderComp.GetTag())
+						if colliderComp.GetTag() == "packet" {
+							// Get packet type for proper label
+							if packetTypeComp := entity.GetPacketType(); packetTypeComp != nil {
+								label = packetTypeComp.GetName() // Show actual packet type (HTTP, TCP, etc.)
+								fmt.Printf("[RenderSystem] Drawing packet label: %s at (%.1f, %.1f)\n", label, transformComp.GetX(), transformComp.GetY())
+							} else {
+								label = "packet"
+								fmt.Printf("[RenderSystem] Drawing generic packet label at (%.1f, %.1f)\n", transformComp.GetX(), transformComp.GetY())
 							}
+						} else if colliderComp.GetTag() == "loadbalancer" {
+							label = "LBaaS"
+							fmt.Printf("[RenderSystem] Drawing LBaaS label at (%.1f, %.1f)\n", transformComp.GetX(), transformComp.GetY())
+						} else if colliderComp.GetTag() == "backend" {
+							// Backend labels are handled by the BackendAssignment component
+							fmt.Printf("[RenderSystem] Found backend entity at (%.1f, %.1f)\n", transformComp.GetX(), transformComp.GetY())
 						}
 					} else {
 						if entityInterface, ok := entity.(interface{ GetComponentNames() []string }); ok {
-							fmt.Printf("[RenderSystem] Entity at (%.1f, %.1f) has no collider component, components: %v\n", transform.GetX(), transform.GetY(), entityInterface.GetComponentNames())
+							fmt.Printf("[RenderSystem] Entity at (%.1f, %.1f) has no collider component, components: %v\n", transformComp.GetX(), transformComp.GetY(), entityInterface.GetComponentNames())
 						}
-						fmt.Printf("[RenderSystem] Entity at (%.1f, %.1f) has no collider component\n", transform.GetX(), transform.GetY())
+						fmt.Printf("[RenderSystem] Entity at (%.1f, %.1f) has no collider component\n", transformComp.GetX(), transformComp.GetY())
 					}
 					if powerUpComp := entity.GetPowerUpType(); powerUpComp != nil {
-						if powerUp, ok := powerUpComp.(components.PowerUpTypeComponent); ok {
-							label = powerUp.GetName()
-							fmt.Printf("[RenderSystem] Drawing power-up label: %s at (%.1f, %.1f)\n", label, transform.GetX(), transform.GetY())
-						}
+						label = powerUpComp.GetName()
+						fmt.Printf("[RenderSystem] Drawing power-up label: %s at (%.1f, %.1f)\n", label, transformComp.GetX(), transformComp.GetY())
 					}
 					if backendComp := entity.GetBackendAssignment(); backendComp != nil {
-						if backend, ok := backendComp.(components.BackendAssignmentComponent); ok {
-							label = fmt.Sprintf("Backend %d", backend.GetBackendID())
-							fmt.Printf("[RenderSystem] Drawing backend label: %s at (%.1f, %.1f)\n", label, transform.GetX(), transform.GetY())
-						}
+						label = fmt.Sprintf("Backend %d", backendComp.GetBackendID())
+						fmt.Printf("[RenderSystem] Drawing backend label: %s at (%.1f, %.1f)\n", label, transformComp.GetX(), transformComp.GetY())
 					}
 					if label != "" {
-						textX := int(transform.GetX())
-						textY := int(transform.GetY()) - 5
+						textX := int(transformComp.GetX())
+						textY := int(transformComp.GetY()) - 5
 						if textY < 0 {
-							textY = int(transform.GetY()) + int(sprite.GetHeight()) + 12
+							textY = int(transformComp.GetY()) + int(spriteComp.GetHeight()) + 12
 						}
 						// Use a more visible color and ensure text is drawn
 						textColor := color.RGBA{255, 255, 255, 255} // Bright white

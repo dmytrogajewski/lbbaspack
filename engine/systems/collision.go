@@ -35,10 +35,7 @@ func (cs *CollisionSystem) Update(deltaTime float64, entities []Entity, eventDis
 		if colliderComp == nil {
 			continue
 		}
-		collider, ok := colliderComp.(components.ColliderComponent)
-		if !ok {
-			continue
-		}
+		collider := colliderComp
 
 		if entityInterface, ok := entity.(interface{ GetComponentNames() []string }); ok {
 			fmt.Printf("[CollisionSystem] Checking entity with components: %v, collider tag: %s\n", entityInterface.GetComponentNames(), collider.GetTag())
@@ -67,11 +64,8 @@ func (cs *CollisionSystem) Update(deltaTime float64, entities []Entity, eventDis
 			return
 		}
 
-		lbTransform, ok1 := lbTransformComp.(components.TransformComponent)
-		lbCollider, ok2 := lbColliderComp.(components.ColliderComponent)
-		if !ok1 || !ok2 {
-			return
-		}
+		lbTransform := lbTransformComp
+		lbCollider := lbColliderComp
 
 		for _, packet := range packets {
 			packetTransformComp := packet.GetTransform()
@@ -80,11 +74,8 @@ func (cs *CollisionSystem) Update(deltaTime float64, entities []Entity, eventDis
 				continue
 			}
 
-			packetTransform, ok1 := packetTransformComp.(components.TransformComponent)
-			packetCollider, ok2 := packetColliderComp.(components.ColliderComponent)
-			if !ok1 || !ok2 {
-				continue
-			}
+			packetTransform := packetTransformComp
+			packetCollider := packetColliderComp
 
 			// Check collision
 			if cs.checkCollision(lbTransform, lbCollider, packetTransform, packetCollider) {
@@ -111,28 +102,24 @@ func (cs *CollisionSystem) Update(deltaTime float64, entities []Entity, eventDis
 				continue
 			}
 
-			powerUpTransform, ok1 := powerUpTransformComp.(components.TransformComponent)
-			powerUpCollider, ok2 := powerUpColliderComp.(components.ColliderComponent)
-			if !ok1 || !ok2 {
-				continue
-			}
+			powerUpTransform := powerUpTransformComp
+			powerUpCollider := powerUpColliderComp
 
 			if cs.checkCollision(lbTransform, lbCollider, powerUpTransform, powerUpCollider) {
 				// Power-up collected!
 				powerUpTypeComp := powerUp.GetPowerUpType()
 				if powerUpTypeComp != nil {
-					if powerUpType, ok := powerUpTypeComp.(components.PowerUpTypeComponent); ok {
-						fmt.Printf("Power-up collected: %s\n", powerUpType.GetName())
+					powerUpType := powerUpTypeComp
+					fmt.Printf("Power-up collected: %s\n", powerUpType.GetName())
 
-						// Deactivate power-up
-						powerUp.(interface{ SetActive(bool) }).SetActive(false)
+					// Deactivate power-up
+					powerUp.(interface{ SetActive(bool) }).SetActive(false)
 
-						// Publish power-up collected event
-						powerupName := powerUpType.GetName()
-						eventDispatcher.Publish(events.NewEvent(events.EventPowerUpCollected, &events.EventData{
-							Powerup: &powerupName,
-						}))
-					}
+					// Publish power-up collected event
+					powerupName := powerUpType.GetName()
+					eventDispatcher.Publish(events.NewEvent(events.EventPowerUpCollected, &events.EventData{
+						Powerup: &powerupName,
+					}))
 				}
 			}
 		}
@@ -144,10 +131,7 @@ func (cs *CollisionSystem) Update(deltaTime float64, entities []Entity, eventDis
 		if transformComp == nil {
 			continue
 		}
-		transform, ok := transformComp.(components.TransformComponent)
-		if !ok {
-			continue
-		}
+		transform := transformComp
 
 		if transform.GetY() > 600 {
 			// Packet missed

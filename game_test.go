@@ -298,7 +298,9 @@ func TestGame_EventHandling(t *testing.T) {
 	game.eventDispatcher.Publish(gameStartEvent)
 
 	// Update to process the event
-	game.Update()
+	if err := game.Update(); err != nil {
+		t.Errorf("Expected no error from game.Update(), got %v", err)
+	}
 
 	if game.gameState != components.StatePlaying {
 		t.Errorf("Expected game state to be StatePlaying after game start event, got %v", game.gameState)
@@ -309,7 +311,9 @@ func TestGame_EventHandling(t *testing.T) {
 	game.eventDispatcher.Publish(gameOverEvent)
 
 	// Update to process the event
-	game.Update()
+	if err := game.Update(); err != nil {
+		t.Errorf("Expected no error from game.Update(), got %v", err)
+	}
 
 	if game.gameState != components.StateGameOver {
 		t.Errorf("Expected game state to be StateGameOver after game over event, got %v", game.gameState)
@@ -430,7 +434,9 @@ func BenchmarkGame_Update(b *testing.B) {
 	game := NewGame()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		game.Update()
+		if err := game.Update(); err != nil {
+			b.Errorf("Expected no error from game.Update(), got %v", err)
+		}
 	}
 }
 
