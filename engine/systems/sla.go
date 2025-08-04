@@ -135,3 +135,28 @@ func (ss *SLASystem) SetErrorBudget(budget int) {
 	fmt.Printf("Error budget set to %d errors\n", budget)
 	// Optionally, you could update all SLA components here
 }
+
+// Getter methods for testing
+func (ss *SLASystem) GetTotalPackets() int {
+	return ss.totalPackets
+}
+
+func (ss *SLASystem) GetCaughtPackets() int {
+	return ss.caughtPackets
+}
+
+func (ss *SLASystem) GetLostPackets() int {
+	return ss.lostPackets
+}
+
+func (ss *SLASystem) GetErrorBudget() int {
+	return ss.errorBudget
+}
+
+// Reset method to clear all counters for new game
+func (ss *SLASystem) Reset() {
+	ss.totalPackets = 0
+	ss.caughtPackets = 0
+	ss.lostPackets = 0
+	fmt.Printf("SLA system reset - counters cleared\n")
+}

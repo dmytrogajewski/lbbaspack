@@ -1,7 +1,6 @@
 package systems
 
 import (
-	"fmt"
 	"lbbaspack/engine/components"
 	"lbbaspack/engine/events"
 
@@ -45,7 +44,9 @@ func (is *InputSystem) GetSystemInfo() *SystemInfo {
 
 func (is *InputSystem) Update(deltaTime float64, entities []Entity, eventDispatcher *events.EventDispatcher) {
 	// Handle mouse input for load balancer movement
-	for _, entity := range is.FilterEntities(entities) {
+	filteredEntities := is.FilterEntities(entities)
+
+	for _, entity := range filteredEntities {
 		transformComp := entity.GetTransform()
 		stateComp := entity.GetState()
 		if transformComp == nil || stateComp == nil {
@@ -54,14 +55,6 @@ func (is *InputSystem) Update(deltaTime float64, entities []Entity, eventDispatc
 
 		transform := transformComp
 		state := stateComp
-
-		// Debug: Log entity state
-		if entityInterface, ok := entity.(interface{ GetComponentNames() []string }); ok {
-			componentNames := entityInterface.GetComponentNames()
-			if len(componentNames) > 0 && componentNames[0] == "Transform" {
-				fmt.Printf("[InputSystem] Entity state: %s\n", state.GetState())
-			}
-		}
 
 		// Only process input if game is in playing state
 		if state.GetState() == "playing" {

@@ -1,6 +1,7 @@
 package systems
 
 import (
+	"fmt"
 	"image/color"
 	"lbbaspack/engine/components"
 	"lbbaspack/engine/entities"
@@ -608,7 +609,7 @@ type MockEntity struct {
 	components map[string]components.Component
 }
 
-func (m *MockEntity) GetID() int {
+func (m *MockEntity) GetID() uint64 {
 	return 1
 }
 
@@ -728,4 +729,167 @@ func (m *MockEntity) IsActive() bool {
 
 func (m *MockEntity) SetActive(active bool) {
 	// Mock implementation
+}
+
+// TestSLASystem_GameRestart tests the SLA system behavior during game restart scenarios
+func TestSLASystem_GameRestart(t *testing.T) {
+	spawnSys := NewSpawnSystem(func() Entity { return entities.NewEntity(1) })
+	ss := NewSLASystem(spawnSys)
+	eventDispatcher := events.NewEventDispatcher()
+
+	ss.Initialize(eventDispatcher)
+
+	t.Run("Complete Game Restart Scenario", func(t *testing.T) {
+		// Test 1: Initial state
+		t.Run("Initial State", func(t *testing.T) {
+			if ss.GetTotalPackets() != 0 {
+				t.Errorf("Expected 0 total packets initially, got %d", ss.GetTotalPackets())
+			}
+			if ss.GetCaughtPackets() != 0 {
+				t.Errorf("Expected 0 caught packets initially, got %d", ss.GetCaughtPackets())
+			}
+			if ss.GetLostPackets() != 0 {
+				t.Errorf("Expected 0 lost packets initially, got %d", ss.GetLostPackets())
+			}
+			if ss.GetErrorBudget() != 10 {
+				t.Errorf("Expected 10 error budget initially, got %d", ss.GetErrorBudget())
+			}
+		})
+
+		// Test 2: First game - simulate packet events
+		t.Run("First Game - Packet Events", func(t *testing.T) {
+			// Simulate packet caught events
+			for i := 0; i < 5; i++ {
+				caughtEvent := events.NewEvent(events.EventPacketCaught, nil)
+				eventDispatcher.Publish(caughtEvent)
+			}
+
+			// Simulate packet lost events
+			for i := 0; i < 2; i++ {
+				lostEvent := events.NewEvent(events.EventPacketLost, nil)
+				eventDispatcher.Publish(lostEvent)
+			}
+
+			if ss.GetTotalPackets() != 7 {
+				t.Errorf("Expected 7 total packets, got %d", ss.GetTotalPackets())
+			}
+			if ss.GetCaughtPackets() != 5 {
+				t.Errorf("Expected 5 caught packets, got %d", ss.GetCaughtPackets())
+			}
+			if ss.GetLostPackets() != 2 {
+				t.Errorf("Expected 2 lost packets, got %d", ss.GetLostPackets())
+			}
+		})
+
+		// Test 3: Game restart - reset and new settings
+		t.Run("Game Restart - Reset and New Settings", func(t *testing.T) {
+			// Reset the SLA system
+			ss.Reset()
+
+			// Verify reset state
+			if ss.GetTotalPackets() != 0 {
+				t.Errorf("Expected 0 total packets after reset, got %d", ss.GetTotalPackets())
+			}
+			if ss.GetCaughtPackets() != 0 {
+				t.Errorf("Expected 0 caught packets after reset, got %d", ss.GetCaughtPackets())
+			}
+			if ss.GetLostPackets() != 0 {
+				t.Errorf("Expected 0 lost packets after reset, got %d", ss.GetLostPackets())
+			}
+
+			// Set new error budget for restart
+			ss.SetErrorBudget(25)
+
+			if ss.GetErrorBudget() != 25 {
+				t.Errorf("Expected 25 error budget after restart, got %d", ss.GetErrorBudget())
+			}
+		})
+
+		// Test 4: Second game - verify clean state
+		t.Run("Second Game - Clean State", func(t *testing.T) {
+			// Simulate new packet events after restart
+			for i := 0; i < 3; i++ {
+				caughtEvent := events.NewEvent(events.EventPacketCaught, nil)
+				eventDispatcher.Publish(caughtEvent)
+			}
+
+			lostEvent := events.NewEvent(events.EventPacketLost, nil)
+			eventDispatcher.Publish(lostEvent)
+
+			if ss.GetTotalPackets() != 4 {
+				t.Errorf("Expected 4 total packets in second game, got %d", ss.GetTotalPackets())
+			}
+			if ss.GetCaughtPackets() != 3 {
+				t.Errorf("Expected 3 caught packets in second game, got %d", ss.GetCaughtPackets())
+			}
+			if ss.GetLostPackets() != 1 {
+				t.Errorf("Expected 1 lost packet in second game, got %d", ss.GetLostPackets())
+			}
+			if ss.GetErrorBudget() != 25 {
+				t.Errorf("Expected 25 error budget in second game, got %d", ss.GetErrorBudget())
+			}
+		})
+	})
+
+	t.Run("Multiple Restarts", func(t *testing.T) {
+		// Test multiple restart cycles
+		for i := 0; i < 3; i++ {
+			t.Run(fmt.Sprintf("Restart Cycle %d", i+1), func(t *testing.T) {
+				// Simulate some game activity
+				for j := 0; j < 3; j++ {
+					caughtEvent := events.NewEvent(events.EventPacketCaught, nil)
+					eventDispatcher.Publish(caughtEvent)
+				}
+
+				lostEvent := events.NewEvent(events.EventPacketLost, nil)
+				eventDispatcher.Publish(lostEvent)
+
+				// Reset for next game
+				ss.Reset()
+				ss.SetErrorBudget(20 + i*5) // Different budget each time
+
+				// Verify clean state
+				if ss.GetTotalPackets() != 0 {
+					t.Errorf("Expected 0 total packets after reset cycle %d, got %d", i+1, ss.GetTotalPackets())
+				}
+				if ss.GetCaughtPackets() != 0 {
+					t.Errorf("Expected 0 caught packets after reset cycle %d, got %d", i+1, ss.GetCaughtPackets())
+				}
+				if ss.GetLostPackets() != 0 {
+					t.Errorf("Expected 0 lost packets after reset cycle %d, got %d", i+1, ss.GetLostPackets())
+				}
+				if ss.GetErrorBudget() != 20+i*5 {
+					t.Errorf("Expected %d error budget after reset cycle %d, got %d", 20+i*5, i+1, ss.GetErrorBudget())
+				}
+			})
+		}
+	})
+
+	t.Run("Reset Preserves Error Budget", func(t *testing.T) {
+		// Set a custom error budget
+		ss.SetErrorBudget(50)
+
+		// Simulate some activity
+		caughtEvent := events.NewEvent(events.EventPacketCaught, nil)
+		eventDispatcher.Publish(caughtEvent)
+
+		lostEvent := events.NewEvent(events.EventPacketLost, nil)
+		eventDispatcher.Publish(lostEvent)
+
+		// Reset should clear counters but preserve error budget
+		ss.Reset()
+
+		if ss.GetTotalPackets() != 0 {
+			t.Errorf("Expected 0 total packets after reset, got %d", ss.GetTotalPackets())
+		}
+		if ss.GetCaughtPackets() != 0 {
+			t.Errorf("Expected 0 caught packets after reset, got %d", ss.GetCaughtPackets())
+		}
+		if ss.GetLostPackets() != 0 {
+			t.Errorf("Expected 0 lost packets after reset, got %d", ss.GetLostPackets())
+		}
+		if ss.GetErrorBudget() != 50 {
+			t.Errorf("Expected 50 error budget to be preserved after reset, got %d", ss.GetErrorBudget())
+		}
+	})
 }

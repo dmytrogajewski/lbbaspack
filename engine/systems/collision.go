@@ -135,6 +135,7 @@ func (cs *CollisionSystem) Update(deltaTime float64, entities []Entity, eventDis
 					powerupName := powerUpType.GetName()
 					eventDispatcher.Publish(events.NewEvent(events.EventPowerUpCollected, &events.EventData{
 						Powerup: &powerupName,
+						Packet:  powerUp,
 					}))
 				}
 			}

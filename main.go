@@ -96,9 +96,12 @@ func NewGame() *Game {
 		// Clean up any existing game entities (packets, power-ups, etc.)
 		game.cleanupGameEntities()
 
-		// Set SLA parameters based on selected mode
+		// Reset SLA system
 		if slaSys, err := systemFactory.GetSystemByType(game.systemManager, systems.SystemTypeSLA); err == nil {
 			if slaSystem, ok := slaSys.(*systems.SLASystem); ok {
+				// Reset counters first
+				slaSystem.Reset()
+				// Then set new parameters
 				if event.Data.SLA != nil {
 					slaSystem.SetTargetSLA(*event.Data.SLA)
 				}
@@ -107,6 +110,28 @@ func NewGame() *Game {
 				}
 			}
 		}
+
+		// Reset UI system
+		if game.UISys != nil {
+			game.UISys.Reset()
+			// Update UI error budget to match SLA system
+			if event.Data.Errors != nil {
+				game.UISys.SetErrorBudget(*event.Data.Errors)
+			}
+		}
+
+		// Initialize backend system counters
+		if backendSys, err := systemFactory.GetSystemByType(game.systemManager, systems.SystemTypeBackend); err == nil {
+			if backendSystem, ok := backendSys.(*systems.BackendSystem); ok {
+				// Convert entities to interface type
+				entitiesInterface := make([]systems.Entity, len(game.World.Entities))
+				for i, entity := range game.World.Entities {
+					entitiesInterface[i] = entity
+				}
+				backendSystem.InitializeBackendCounters(entitiesInterface)
+			}
+		}
+
 		game.gameState = components.StatePlaying
 
 		// Ensure load balancer state is updated to playing
@@ -115,7 +140,6 @@ func NewGame() *Game {
 				stateComp := entity.GetState()
 				if stateComp != nil {
 					stateComp.SetState("playing")
-					fmt.Printf("[Game] Updated entity %d state to playing\n", entity.ID)
 				}
 			}
 		}

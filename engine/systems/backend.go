@@ -40,7 +40,8 @@ func (bs *BackendSystem) GetSystemInfo() *SystemInfo {
 }
 
 func (bs *BackendSystem) Update(deltaTime float64, entities []Entity, eventDispatcher *events.EventDispatcher) {
-	// Update backend counters and handle packet assignments
+	// First, read current entity counters to sync our internal state
+	// But only if we haven't already assigned packets (to avoid overwriting our internal state)
 	for _, entity := range bs.FilterEntities(entities) {
 		backendComp := entity.GetBackendAssignment()
 		if backendComp == nil {
@@ -48,22 +49,65 @@ func (bs *BackendSystem) Update(deltaTime float64, entities []Entity, eventDispa
 		}
 		backend := backendComp
 
-		// Update the global counter for this backend
-		bs.backendCounters[backend.GetBackendID()] = backend.GetAssignedPackets()
+		// Read the entity's counter to sync our internal state
+		backendID := backend.GetBackendID()
+		entityCount := backend.GetAssignedPackets()
+
+		// Only update internal counter if it's not already higher (preserve packet assignments)
+		if currentCount, exists := bs.backendCounters[backendID]; !exists || entityCount > currentCount {
+			bs.backendCounters[backendID] = entityCount
+		}
+	}
+
+	// Then, update entity counters to match our internal tracking
+	for _, entity := range bs.FilterEntities(entities) {
+		backendComp := entity.GetBackendAssignment()
+		if backendComp == nil {
+			continue
+		}
+		backend := backendComp
+
+		// Update the entity's counter to match our internal tracking
+		backendID := backend.GetBackendID()
+		if count, exists := bs.backendCounters[backendID]; exists {
+			currentCount := backend.GetAssignedPackets()
+			// Increment the entity counter to reach the target
+			for i := currentCount; i < count; i++ {
+				backend.IncrementAssignedPackets()
+			}
+		}
 	}
 }
 
 func (bs *BackendSystem) Initialize(eventDispatcher *events.EventDispatcher) {
 	// Listen for packet caught events to assign to backends
 	eventDispatcher.Subscribe(events.EventPacketCaught, func(event *events.Event) {
+		// We need entities to update, but we don't have them in the event
+		// So we'll just update internal counters and let Update method sync them
 		bs.assignPacketToBackend()
+	})
+
+	// Listen for game start events to reset backend counters
+	eventDispatcher.Subscribe(events.EventGameStart, func(event *events.Event) {
+		bs.resetBackendCounters()
 	})
 }
 
+// InitializeBackendCounters initializes the backend counters from existing entities
+func (bs *BackendSystem) InitializeBackendCounters(entities []Entity) {
+	for _, entity := range entities {
+		if backendComp := entity.GetBackendAssignment(); backendComp != nil {
+			backendID := backendComp.GetBackendID()
+			bs.backendCounters[backendID] = 0
+			fmt.Printf("[BackendSystem] Initialized counter for backend %d\n", backendID)
+		}
+	}
+}
+
 func (bs *BackendSystem) assignPacketToBackend() {
-	// Simple round-robin assignment
-	backendCount := len(bs.backendCounters)
-	if backendCount == 0 {
+	// Check if there are any backends
+	if len(bs.backendCounters) == 0 {
+		// No backends available, don't assign packet
 		return
 	}
 
@@ -92,4 +136,11 @@ func (bs *BackendSystem) GetBackendStats() map[int]int {
 
 func (bs *BackendSystem) GetTotalPackets() int {
 	return bs.totalPackets
+}
+
+// resetBackendCounters resets all backend counters when starting a new game
+func (bs *BackendSystem) resetBackendCounters() {
+	bs.backendCounters = make(map[int]int)
+	bs.totalPackets = 0
+	fmt.Println("[BackendSystem] Reset backend counters")
 }

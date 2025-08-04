@@ -73,6 +73,11 @@ func (e *Entity) IsActive() bool {
 	return e.Active
 }
 
+// GetID returns the entity's ID
+func (e *Entity) GetID() uint64 {
+	return e.ID
+}
+
 // GetComponentNames returns all component type names for debugging
 func (e *Entity) GetComponentNames() []string {
 	e.mu.RLock()

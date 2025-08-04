@@ -100,7 +100,7 @@ func (gss *GameStateSystem) Initialize(eventDispatcher *events.EventDispatcher) 
 }
 
 func (gss *GameStateSystem) transitionToPlaying() {
-	if gss.currentState == components.StateMenu {
+	if gss.currentState == components.StateMenu || gss.currentState == components.StateGameOver {
 		gss.currentState = components.StatePlaying
 		gss.gameTime = 0.0
 		gss.score = 0

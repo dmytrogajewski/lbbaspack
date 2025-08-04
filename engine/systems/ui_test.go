@@ -1,6 +1,7 @@
 package systems
 
 import (
+	"fmt"
 	"lbbaspack/engine/components"
 	"lbbaspack/engine/entities"
 	"lbbaspack/engine/events"
@@ -22,6 +23,10 @@ func newUITestEntity(id uint64) *uiTestEntity {
 		componentsAdded: make([]string, 0),
 		isActive:        true,
 	}
+}
+
+func (ute *uiTestEntity) GetID() uint64 {
+	return ute.entity.GetID()
 }
 
 func (ute *uiTestEntity) GetComponent(componentType string) components.Component {
@@ -252,7 +257,11 @@ func TestUISystem_Initialize(t *testing.T) {
 	t.Run("Packet Lost Event", func(t *testing.T) {
 		initialLost := uis.lostPackets
 
-		event := events.NewEvent(events.EventPacketLost, nil)
+		// UI system now gets packet lost info from SLA update events
+		event := events.NewEvent(events.EventSLAUpdated, &events.EventData{
+			Lost:      intPtr(initialLost + 1),
+			Remaining: intPtr(uis.errorBudget - (initialLost + 1)),
+		})
 
 		eventDispatcher.Publish(event)
 
@@ -500,10 +509,10 @@ func TestUISystem_Integration(t *testing.T) {
 		}
 		eventDispatcher.Publish(ddosStartEvent)
 
-		// 4. Lose a packet
-		packetLostEvent := &events.Event{
-			Type: events.EventPacketLost,
-		}
+		// 4. Lose a packet (UI system now gets this info from SLA update)
+		packetLostEvent := events.NewEvent(events.EventSLAUpdated, &events.EventData{
+			Lost: intPtr(4), // Update to 4 lost packets
+		})
 		eventDispatcher.Publish(packetLostEvent)
 
 		// 5. End DDoS attack
@@ -575,10 +584,11 @@ func TestUISystem_ErrorBudgetEdgeCases(t *testing.T) {
 		uis.errorBudget = 10
 		uis.lostPackets = 9
 
-		// Lose another packet
-		event := &events.Event{
-			Type: events.EventPacketLost,
-		}
+		// Lose another packet (UI system now gets this info from SLA update)
+		event := events.NewEvent(events.EventSLAUpdated, &events.EventData{
+			Lost:      intPtr(10), // This should make remaining errors 0
+			Remaining: intPtr(0),  // 10 - 10 = 0 remaining errors
+		})
 		eventDispatcher.Publish(event)
 
 		// Should have 0 remaining errors
@@ -601,14 +611,152 @@ func TestUISystem_ErrorBudgetEdgeCases(t *testing.T) {
 		uis.remainingErrors = 0
 		uis.lostPackets = 0
 
-		event := &events.Event{
-			Type: events.EventPacketLost,
-		}
+		event := events.NewEvent(events.EventSLAUpdated, &events.EventData{
+			Lost:      intPtr(1), // This should make remaining errors 0
+			Remaining: intPtr(0), // 0 - 1 = 0 remaining errors (clamped)
+		})
 		eventDispatcher.Publish(event)
 
 		// Should remain 0
 		if uis.remainingErrors != 0 {
 			t.Errorf("Expected remainingErrors to be 0, got %d", uis.remainingErrors)
+		}
+	})
+}
+
+// TestUISystem_GameRestart tests the UI system behavior during game restart scenarios
+func TestUISystem_GameRestart(t *testing.T) {
+	screen := ebiten.NewImage(800, 600)
+	defer screen.Dispose()
+
+	uis := NewUISystem(screen)
+	eventDispatcher := events.NewEventDispatcher()
+
+	uis.Initialize(eventDispatcher)
+
+	t.Run("Complete Game Restart Scenario", func(t *testing.T) {
+		// Test 1: Initial state
+		t.Run("Initial State", func(t *testing.T) {
+			if uis.GetCaughtPackets() != 0 {
+				t.Errorf("Expected 0 caught packets initially, got %d", uis.GetCaughtPackets())
+			}
+			if uis.GetLostPackets() != 0 {
+				t.Errorf("Expected 0 lost packets initially, got %d", uis.GetLostPackets())
+			}
+			if uis.GetRemainingErrors() != 10 {
+				t.Errorf("Expected 10 remaining errors initially, got %d", uis.GetRemainingErrors())
+			}
+			if uis.GetErrorBudget() != 10 {
+				t.Errorf("Expected 10 error budget initially, got %d", uis.GetErrorBudget())
+			}
+		})
+
+		// Test 2: First game - simulate packet events
+		t.Run("First Game - Packet Events", func(t *testing.T) {
+			// Simulate SLA update with some lost packets
+			slaEvent := events.NewEvent(events.EventSLAUpdated, &events.EventData{
+				Current:   float64Ptr(95.0),
+				Caught:    intPtr(19),
+				Lost:      intPtr(1),
+				Remaining: intPtr(9),
+				Budget:    intPtr(10),
+			})
+			eventDispatcher.Publish(slaEvent)
+
+			if uis.GetCaughtPackets() != 19 {
+				t.Errorf("Expected 19 caught packets, got %d", uis.GetCaughtPackets())
+			}
+			if uis.GetLostPackets() != 1 {
+				t.Errorf("Expected 1 lost packet, got %d", uis.GetLostPackets())
+			}
+			if uis.GetRemainingErrors() != 9 {
+				t.Errorf("Expected 9 remaining errors, got %d", uis.GetRemainingErrors())
+			}
+		})
+
+		// Test 3: Game restart - reset and new settings
+		t.Run("Game Restart - Reset and New Settings", func(t *testing.T) {
+			// Reset the UI system
+			uis.Reset()
+
+			// Verify reset state
+			if uis.GetCaughtPackets() != 0 {
+				t.Errorf("Expected 0 caught packets after reset, got %d", uis.GetCaughtPackets())
+			}
+			if uis.GetLostPackets() != 0 {
+				t.Errorf("Expected 0 lost packets after reset, got %d", uis.GetLostPackets())
+			}
+			if uis.GetRemainingErrors() != 10 {
+				t.Errorf("Expected 10 remaining errors after reset, got %d", uis.GetRemainingErrors())
+			}
+
+			// Set new error budget for restart
+			uis.SetErrorBudget(25)
+
+			if uis.GetErrorBudget() != 25 {
+				t.Errorf("Expected 25 error budget after restart, got %d", uis.GetErrorBudget())
+			}
+			if uis.GetRemainingErrors() != 25 {
+				t.Errorf("Expected 25 remaining errors after restart, got %d", uis.GetRemainingErrors())
+			}
+		})
+
+		// Test 4: Second game - verify clean state
+		t.Run("Second Game - Clean State", func(t *testing.T) {
+			// Simulate new SLA update after restart
+			slaEvent := events.NewEvent(events.EventSLAUpdated, &events.EventData{
+				Current:   float64Ptr(98.0),
+				Caught:    intPtr(49),
+				Lost:      intPtr(1),
+				Remaining: intPtr(24),
+				Budget:    intPtr(25),
+			})
+			eventDispatcher.Publish(slaEvent)
+
+			if uis.GetCaughtPackets() != 49 {
+				t.Errorf("Expected 49 caught packets in second game, got %d", uis.GetCaughtPackets())
+			}
+			if uis.GetLostPackets() != 1 {
+				t.Errorf("Expected 1 lost packet in second game, got %d", uis.GetLostPackets())
+			}
+			if uis.GetRemainingErrors() != 24 {
+				t.Errorf("Expected 24 remaining errors in second game, got %d", uis.GetRemainingErrors())
+			}
+			if uis.GetErrorBudget() != 25 {
+				t.Errorf("Expected 25 error budget in second game, got %d", uis.GetErrorBudget())
+			}
+		})
+	})
+
+	t.Run("Multiple Restarts", func(t *testing.T) {
+		// Test multiple restart cycles
+		for i := 0; i < 3; i++ {
+			t.Run(fmt.Sprintf("Restart Cycle %d", i+1), func(t *testing.T) {
+				// Simulate some game activity
+				slaEvent := events.NewEvent(events.EventSLAUpdated, &events.EventData{
+					Current:   float64Ptr(90.0),
+					Caught:    intPtr(9),
+					Lost:      intPtr(1),
+					Remaining: intPtr(9),
+					Budget:    intPtr(10),
+				})
+				eventDispatcher.Publish(slaEvent)
+
+				// Reset for next game
+				uis.Reset()
+				uis.SetErrorBudget(15 + i*5) // Different budget each time
+
+				// Verify clean state
+				if uis.GetCaughtPackets() != 0 {
+					t.Errorf("Expected 0 caught packets after reset cycle %d, got %d", i+1, uis.GetCaughtPackets())
+				}
+				if uis.GetLostPackets() != 0 {
+					t.Errorf("Expected 0 lost packets after reset cycle %d, got %d", i+1, uis.GetLostPackets())
+				}
+				if uis.GetRemainingErrors() != 15+i*5 {
+					t.Errorf("Expected %d remaining errors after reset cycle %d, got %d", 15+i*5, i+1, uis.GetRemainingErrors())
+				}
+			})
 		}
 	})
 }

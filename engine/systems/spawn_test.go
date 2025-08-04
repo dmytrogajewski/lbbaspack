@@ -30,6 +30,10 @@ func (ste *spawnTestEntity) GetComponentNames() []string {
 	return ste.componentsAdded
 }
 
+func (ste *spawnTestEntity) GetID() uint64 {
+	return ste.entity.GetID()
+}
+
 // Implement Entity interface methods
 func (ste *spawnTestEntity) GetComponent(componentType string) components.Component {
 	return ste.entity.GetComponent(componentType)

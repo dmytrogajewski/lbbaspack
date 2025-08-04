@@ -485,6 +485,10 @@ type mockEntity struct {
 	id uint64
 }
 
+func (me *mockEntity) GetID() uint64 {
+	return me.id
+}
+
 func (me *mockEntity) GetComponent(componentType string) components.Component {
 	return nil
 }

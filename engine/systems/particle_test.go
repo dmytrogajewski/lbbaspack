@@ -239,7 +239,7 @@ func TestParticleSystem_Draw(t *testing.T) {
 		}
 	}()
 
-	ps.Draw(screen)
+	ps.Draw(screen, []Entity{})
 
 	// If we get here, Draw executed without panicking
 }
@@ -262,7 +262,7 @@ func TestParticleSystem_Draw_WithParticles(t *testing.T) {
 		}
 	}()
 
-	ps.Draw(screen)
+	ps.Draw(screen, []Entity{})
 
 	// If we get here, Draw executed without panicking
 }
@@ -286,7 +286,7 @@ func TestParticleSystem_Draw_WithInactiveParticles(t *testing.T) {
 		}
 	}()
 
-	ps.Draw(screen)
+	ps.Draw(screen, []Entity{})
 
 	// If we get here, Draw executed without panicking
 }
@@ -301,7 +301,7 @@ func TestParticleSystem_Draw_NilScreen(t *testing.T) {
 		}
 	}()
 
-	ps.Draw(nil)
+	ps.Draw(nil, []Entity{})
 
 	// If we get here, Draw handled nil screen gracefully (which is good)
 }
@@ -530,7 +530,7 @@ func TestParticleSystem_Integration(t *testing.T) {
 		}
 	}()
 
-	ps.Draw(screen)
+	ps.Draw(screen, []Entity{})
 }
 
 // Helper functions to create test entities

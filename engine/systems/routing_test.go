@@ -329,7 +329,7 @@ func TestRoutingSystem_Draw_NilScreen(t *testing.T) {
 		}
 	}()
 
-	rs.Draw(nil)
+	rs.Draw(nil, []Entity{})
 }
 
 func TestRoutingSystem_Draw_NoRoutes(t *testing.T) {
@@ -342,7 +342,7 @@ func TestRoutingSystem_Draw_NoRoutes(t *testing.T) {
 		}
 	}()
 
-	rs.Draw(nil)
+	rs.Draw(nil, []Entity{})
 }
 
 func TestRoutingSystem_Draw_WithRoutes(t *testing.T) {
@@ -359,7 +359,7 @@ func TestRoutingSystem_Draw_WithRoutes(t *testing.T) {
 		}
 	}()
 
-	rs.Draw(nil)
+	rs.Draw(nil, []Entity{})
 }
 
 func TestRoutingSystem_Draw_CompletedRoutes(t *testing.T) {
@@ -377,7 +377,7 @@ func TestRoutingSystem_Draw_CompletedRoutes(t *testing.T) {
 		}
 	}()
 
-	rs.Draw(nil)
+	rs.Draw(nil, []Entity{})
 }
 
 func TestRoutingSystem_Initialize(t *testing.T) {

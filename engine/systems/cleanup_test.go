@@ -8,15 +8,21 @@ import (
 
 // Mock entity for testing
 type mockCleanupEntity struct {
+	id         uint64
 	active     bool
 	components map[string]components.Component
 }
 
 func newMockCleanupEntity(active bool) *mockCleanupEntity {
 	return &mockCleanupEntity{
+		id:         1,
 		active:     active,
 		components: make(map[string]components.Component),
 	}
+}
+
+func (e *mockCleanupEntity) GetID() uint64 {
+	return e.id
 }
 
 func (e *mockCleanupEntity) IsActive() bool {

@@ -8,6 +8,7 @@ import (
 // Entity interface defines what an entity must provide
 // This is defined where it's used (in systems package)
 type Entity interface {
+	GetID() uint64
 	GetComponent(componentType string) components.Component
 	HasComponent(componentType string) bool
 	IsActive() bool

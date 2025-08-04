@@ -3,6 +3,8 @@ package systems
 import (
 	"fmt"
 	"lbbaspack/engine/events"
+
+	"github.com/hajimehoshi/ebiten/v2"
 )
 
 // SystemType represents different types of systems
@@ -411,10 +413,12 @@ func (sm *SystemManager) UpdateAll(deltaTime float64, entities []Entity, eventDi
 func (sm *SystemManager) DrawAll(screen interface{}, entities []Entity) {
 	for _, systemType := range sm.drawOrder {
 		if info, exists := sm.systems[systemType]; exists {
-			if drawable, ok := info.System.(interface {
-				Draw(screen interface{}, entities []Entity)
-			}); ok {
-				drawable.Draw(screen, entities)
+			// Use type assertion to check if system implements DrawableSystem
+			if drawable, ok := info.System.(DrawableSystem); ok {
+				// Type assert screen to *ebiten.Image for type safety
+				if ebitenScreen, ok := screen.(*ebiten.Image); ok {
+					drawable.Draw(ebitenScreen, entities)
+				}
 			}
 		}
 	}

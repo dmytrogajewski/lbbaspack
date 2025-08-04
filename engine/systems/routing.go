@@ -66,7 +66,7 @@ func (rs *RoutingSystem) Update(deltaTime float64, entities []Entity, eventDispa
 	}
 }
 
-func (rs *RoutingSystem) Draw(screen *ebiten.Image) {
+func (rs *RoutingSystem) Draw(screen *ebiten.Image, entities []Entity) {
 	// Check if screen is nil to avoid panic
 	if screen == nil {
 		return
@@ -106,6 +106,11 @@ func (rs *RoutingSystem) CreateRoute(startX, startY, endX, endY float64, packetC
 		Active:   true,
 	}
 	rs.routes = append(rs.routes, route)
+}
+
+// GetRoutes returns the current routes for testing
+func (rs *RoutingSystem) GetRoutes() []*Route {
+	return rs.routes
 }
 
 func (rs *RoutingSystem) Initialize(eventDispatcher *events.EventDispatcher) {

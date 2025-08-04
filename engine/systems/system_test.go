@@ -21,6 +21,10 @@ func newSystemTestEntity(id uint64) *systemTestEntity {
 	}
 }
 
+func (ste *systemTestEntity) GetID() uint64 {
+	return ste.entity.GetID()
+}
+
 func (ste *systemTestEntity) GetComponent(componentType string) components.Component {
 	return ste.entity.GetComponent(componentType)
 }

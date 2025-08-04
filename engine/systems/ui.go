@@ -70,15 +70,8 @@ func (uis *UISystem) Initialize(eventDispatcher *events.EventDispatcher) {
 		}
 	})
 
-	// Listen for packet lost events to update error count immediately
-	eventDispatcher.Subscribe(events.EventPacketLost, func(event *events.Event) {
-		uis.lostPackets++
-		remainingErrors := uis.errorBudget - uis.lostPackets
-		if remainingErrors < 0 {
-			remainingErrors = 0
-		}
-		uis.remainingErrors = remainingErrors
-	})
+	// Note: Packet lost events are handled by the SLA system which publishes EventSLAUpdated
+	// The UI system gets the updated counts from EventSLAUpdated events
 
 	// Listen for level-up events
 	eventDispatcher.Subscribe(events.EventLevelUp, func(event *events.Event) {
@@ -94,6 +87,42 @@ func (uis *UISystem) Initialize(eventDispatcher *events.EventDispatcher) {
 	eventDispatcher.Subscribe(events.EventDDoSEnd, func(event *events.Event) {
 		uis.isDDoSActive = false
 	})
+}
+
+// Getter methods for testing
+func (uis *UISystem) GetCaughtPackets() int {
+	return uis.caughtPackets
+}
+
+func (uis *UISystem) GetLostPackets() int {
+	return uis.lostPackets
+}
+
+func (uis *UISystem) GetRemainingErrors() int {
+	return uis.remainingErrors
+}
+
+func (uis *UISystem) GetErrorBudget() int {
+	return uis.errorBudget
+}
+
+// Reset method to clear all counters for new game
+func (uis *UISystem) Reset() {
+	uis.score = 0
+	uis.currentSLA = 100.0
+	uis.caughtPackets = 0
+	uis.lostPackets = 0
+	uis.remainingErrors = uis.errorBudget // Reset to current error budget
+	uis.level = 1
+	uis.isDDoSActive = false
+	fmt.Printf("UI system reset - counters cleared, error budget: %d, remaining errors: %d\n", uis.errorBudget, uis.remainingErrors)
+}
+
+// SetErrorBudget updates the error budget and remaining errors
+func (uis *UISystem) SetErrorBudget(budget int) {
+	uis.errorBudget = budget
+	uis.remainingErrors = budget // Reset remaining errors to new budget
+	fmt.Printf("UI system error budget set to %d, remaining errors: %d\n", uis.errorBudget, uis.remainingErrors)
 }
 
 func (uis *UISystem) Draw(screen *ebiten.Image, entities []Entity) {

@@ -51,7 +51,7 @@ func (ps *ParticleSystem) Update(deltaTime float64, entities []Entity, eventDisp
 	}
 }
 
-func (ps *ParticleSystem) Draw(screen *ebiten.Image) {
+func (ps *ParticleSystem) Draw(screen *ebiten.Image, entities []Entity) {
 	// Draw all active particles
 	for _, particle := range ps.particles {
 		if particle.Active {
