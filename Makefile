@@ -27,11 +27,14 @@ BIN_DIR := bin
 DIST_DIR := dist
 BUILD_DIR := build
 COVERAGE_DIR := coverage
+WASM_DIR := wasm
 
 # Files
 MAIN_FILE := main.go
 BINARY := $(BIN_DIR)/$(BINARY_NAME)
 DIST_BINARY := $(DIST_DIR)/$(BINARY_NAME)-$(VERSION)
+WASM_BINARY := $(WASM_DIR)/$(BINARY_NAME).wasm
+WASM_HTML := $(WASM_DIR)/index.html
 
 # Test parameters
 TEST_FLAGS := -v -race -cover
@@ -58,6 +61,9 @@ $(BUILD_DIR):
 $(COVERAGE_DIR):
 	mkdir -p $(COVERAGE_DIR)
 
+$(WASM_DIR):
+	mkdir -p $(WASM_DIR)
+
 # Help target
 .PHONY: help
 help: ## Show this help message
@@ -72,7 +78,9 @@ help: ## Show this help message
 	@echo "  make test      # Run all tests"
 	@echo "  make run       # Run the application"
 	@echo "  make clean     # Clean build artifacts"
-
+	@echo "  make wasm      # Build WebAssembly version"
+	@echo "  make wasm-serve # Serve WebAssembly version (port 8080)"
+	@echo "  make wasm-serve-go # Serve with Go server (port 8000)"
 
 
 # Build targets
@@ -93,6 +101,82 @@ build-release: $(DIST_DIR) ## Build release version
 	@echo "Building release version..."
 	$(GOBUILD) $(LDFLAGS) -ldflags="-s -w" -o $(DIST_BINARY) $(MAIN_FILE)
 	@echo "Release build complete: $(DIST_BINARY)"
+
+# WebAssembly targets
+.PHONY: wasm
+wasm: $(WASM_DIR) ## Build WebAssembly version
+	@echo "Building WebAssembly version..."
+	GOOS=js GOARCH=wasm $(GOBUILD) $(LDFLAGS) -o $(WASM_BINARY) $(MAIN_FILE)
+	@echo "WebAssembly build complete: $(WASM_BINARY)"
+
+.PHONY: wasm-copy-js
+wasm-copy-js: $(WASM_DIR) ## Copy wasm_exec.js to wasm directory
+	@echo "Copying wasm_exec.js..."
+	@if [ -f "$(shell go env GOROOT)/lib/wasm/wasm_exec.js" ]; then \
+		cp "$(shell go env GOROOT)/lib/wasm/wasm_exec.js" $(WASM_DIR)/; \
+		echo "Copied wasm_exec.js from Go 1.24+ location"; \
+	elif [ -f "$(shell go env GOROOT)/misc/wasm/wasm_exec.js" ]; then \
+		cp "$(shell go env GOROOT)/misc/wasm/wasm_exec.js" $(WASM_DIR)/; \
+		echo "Copied wasm_exec.js from Go 1.23- location"; \
+	elif [ -f "wasm/wasm_exec.js" ]; then \
+		echo "wasm_exec.js already exists in wasm directory"; \
+	else \
+		echo "Downloading wasm_exec.js from Go repository..."; \
+		curl -o $(WASM_DIR)/wasm_exec.js https://raw.githubusercontent.com/golang/go/go1.24.5/lib/wasm/wasm_exec.js; \
+		echo "Downloaded wasm_exec.js"; \
+	fi
+
+.PHONY: wasm-html
+wasm-html: $(WASM_DIR) ## Copy HTML file for WebAssembly
+	@echo "Copying HTML file..."
+	@if [ -f "wasm/index.html" ]; then \
+		cp wasm/index.html $(WASM_HTML); \
+		echo "HTML file copied: $(WASM_HTML)"; \
+	else \
+		echo "HTML file already exists at $(WASM_HTML)"; \
+	fi
+
+.PHONY: wasm-setup
+wasm-setup: wasm wasm-copy-js wasm-html ## Complete WebAssembly setup
+	@echo "WebAssembly setup complete!"
+	@echo "Files created:"
+	@echo "  - $(WASM_BINARY)"
+	@echo "  - $(WASM_DIR)/wasm_exec.js"
+	@echo "  - $(WASM_HTML)"
+	@echo ""
+	@echo "To serve the WebAssembly version:"
+	@echo "  make wasm-serve"
+	@echo ""
+	@echo "Or open $(WASM_HTML) in a web browser with a local HTTP server."
+
+.PHONY: wasm-serve
+wasm-serve: wasm-setup ## Serve WebAssembly version using Go HTTP server
+	@echo "Starting WebAssembly server..."
+	@echo "Building Go HTTP server..."
+	@cd $(WASM_DIR) && go build -o server server.go
+	@echo "Starting Go HTTP server with correct MIME types..."
+	@echo "WebAssembly files are ready in $(WASM_DIR)/"
+	@echo "Starting Go HTTP server on port 8080..."
+	@echo "Open http://localhost:8080 in your browser"
+	@cd $(WASM_DIR) && ./server 8080
+
+.PHONY: wasm-serve-simple
+wasm-serve-simple: wasm-setup ## Serve WebAssembly version using Python HTTP server
+	@echo "Starting simple HTTP server..."
+	@echo "WebAssembly files are ready in $(WASM_DIR)/"
+	@echo "Starting Python HTTP server on port 8000..."
+	@echo "Open http://localhost:8000 in your browser"
+	@cd $(WASM_DIR) && python3 -m http.server 8000 || python -m http.server 8000
+
+.PHONY: wasm-serve-go
+wasm-serve-go: wasm-setup ## Serve WebAssembly version using Go HTTP server (recommended)
+	@echo "Building Go HTTP server..."
+	@cd $(WASM_DIR) && go build -o server server.go
+	@echo "Starting Go HTTP server with correct MIME types..."
+	@echo "WebAssembly files are ready in $(WASM_DIR)/"
+	@echo "Starting Go HTTP server on port 8000..."
+	@echo "Open http://localhost:8000 in your browser"
+	@cd $(WASM_DIR) && ./server 8000
 
 # Test targets
 .PHONY: test
@@ -225,6 +309,7 @@ clean: ## Clean build artifacts
 	$(GOCLEAN)
 	rm -rf $(BIN_DIR)
 	rm -rf $(BUILD_DIR)
+	rm -rf $(WASM_DIR)
 	@echo "Clean complete"
 
 .PHONY: clean-all

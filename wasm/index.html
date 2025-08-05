@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LBaaS Packet Catcher - WebAssembly</title>
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+        
+        body {
+            margin: 0;
+            padding: 20px;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+            color: #ffffff;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+        
+        .container {
+            text-align: center;
+            max-width: 900px;
+            width: 100%;
+        }
+        
+        .header {
+            margin-bottom: 30px;
+        }
+        
+        h1 {
+            color: #4CAF50;
+            margin-bottom: 10px;
+            font-size: 2.5em;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+        }
+        
+        .subtitle {
+            color: #81c784;
+            font-size: 1.2em;
+            margin-bottom: 20px;
+        }
+        
+        .game-container {
+            border: 3px solid #4CAF50;
+            border-radius: 12px;
+            margin: 20px 0;
+            background-color: rgba(42, 42, 42, 0.9);
+            box-shadow: 0 8px 32px rgba(76, 175, 80, 0.3);
+            overflow: hidden;
+            position: relative;
+        }
+        
+        @keyframes shimmer {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(100%); }
+        }
+        
+        canvas {
+            display: block;
+            width: 100%;
+            max-width: 800px;
+            height: 600px;
+            margin: 0 auto;
+            border-radius: 4px;
+            outline: none;
+            cursor: crosshair;
+        }
+        
+        canvas:focus {
+            border-color: #81c784;
+            box-shadow: 0 0 10px rgba(76, 175, 80, 0.5);
+        }
+        
+        .instructions {
+            background: linear-gradient(135deg, #333 0%, #2a2a2a 100%);
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+            text-align: left;
+            border-left: 4px solid #4CAF50;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+        }
+        
+        .instructions h3 {
+            color: #4CAF50;
+            margin-top: 0;
+            font-size: 1.3em;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .instructions ul {
+            margin: 15px 0;
+            padding-left: 20px;
+        }
+        
+        .instructions li {
+            margin: 8px 0;
+            line-height: 1.6;
+        }
+        
+        .instructions strong {
+            color: #81c784;
+        }
+        
+        .error {
+            color: #f44336;
+            background: linear-gradient(135deg, #ffebee 0%, #ffcdd2 100%);
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+            border-left: 4px solid #f44336;
+            display: none;
+        }
+        
+        .controls {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+        
+        .control-group {
+            background: rgba(51, 51, 51, 0.8);
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid #555;
+        }
+        
+        .control-group h4 {
+            color: #4CAF50;
+            margin: 0 0 10px 0;
+            font-size: 1em;
+        }
+        
+        .key {
+            display: inline-block;
+            background: #555;
+            color: #fff;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 0.9em;
+            margin: 2px;
+            border: 1px solid #777;
+        }
+        
+        .game-controls {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            margin-top: 15px;
+            padding: 10px;
+        }
+        
+        .btn {
+            background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: bold;
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+        
+        .btn:hover {
+            background: linear-gradient(135deg, #45a049 0%, #4CAF50 100%);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+        }
+        
+        .btn:active {
+            transform: translateY(0);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+        
+        .footer {
+            margin-top: 30px;
+            color: #888;
+            font-size: 0.9em;
+        }
+        
+        @media (max-width: 768px) {
+            body {
+                padding: 10px;
+            }
+            
+            h1 {
+                font-size: 2em;
+            }
+            
+            .game-container {
+                border-width: 2px;
+            }
+            
+            .instructions {
+                padding: 15px;
+            }
+            
+            .controls {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>LBaaS Packet Catcher</h1>
+            <p class="subtitle">ECS Edition - WebAssembly Version</p>
+        </div>
+        
+        <div class="instructions">
+            <h3>🎮 How to Play</h3>
+            <p>Control the load balancer to catch incoming packets and route them to healthy backends. Keep your SLA targets high and avoid errors!</p>
+        </div>
+        
+        <div class="controls">
+            <div class="control-group">
+                <h4>🎯 Movement</h4>
+                <p><span class="key">Mouse</span> - Move load balancer</p>
+            </div>
+            <div class="control-group">
+                <h4>🎮 Game Controls</h4>
+                <p><span class="key">Space</span> - Start game</p>
+                <p><span class="key">Escape</span> - Menu/Exit</p>
+                <p><span class="key">Ctrl+X</span> - Exit game</p>
+                <p><span class="key">Fullscreen</span> - Click button below</p>
+            </div>
+            <div class="control-group">
+                <h4>📊 Objectives</h4>
+                <p>• Catch packets with load balancer</p>
+                <p>• Maintain high SLA targets</p>
+                <p>• Avoid backend errors</p>
+            </div>
+        </div>
+        
+        <div class="game-container">
+            <div id="canvas-placeholder" style="width: 800px; height: 600px; margin: 0 auto; border-radius: 4px; display: flex; align-items: center; justify-content: center; background-color: rgba(42, 42, 42, 0.5);">
+            
+            </div>
+            <div class="game-controls">
+                <button id="fullscreen-btn" class="btn">🎮 Fullscreen</button>
+                <button id="start-btn" class="btn">▶️ Start Game</button>
+            </div>
+        </div>
+        
+        <div id="loading" class="loading">Loading WebAssembly game...</div>
+        <div id="error" class="error"></div>
+        
+        <div class="footer">
+            <p>Built with Go WebAssembly and Ebiten | ECS Architecture</p>
+        </div>
+    </div>
+
+    <script src="./wasm_exec.js"></script>
+    <script>
+        const go = new Go();
+        let canvas = null; // Will be set when Ebiten creates its canvas
+        const loading = document.getElementById('loading');
+        const error = document.getElementById('error');
+        const canvasPlaceholder = document.getElementById('canvas-placeholder');
+
+        function showError(message) {
+            loading.style.display = 'none';
+            error.style.display = 'block';
+            error.textContent = message;
+        }
+
+        function hideLoading() {
+            loading.style.display = 'none';
+        }
+
+        function showLoading() {
+            loading.style.display = 'block';
+            error.style.display = 'none';
+        }
+
+        // Handle window resize for responsive canvas
+        function resizeCanvas() {
+            if (!canvas) return;
+            const container = canvas.parentElement;
+            const containerWidth = container.clientWidth - 40; // Account for padding
+            const aspectRatio = 800 / 600;
+            
+            if (containerWidth < 800) {
+                canvas.style.width = containerWidth + 'px';
+                canvas.style.height = (containerWidth / aspectRatio) + 'px';
+            } else {
+                canvas.style.width = '800px';
+                canvas.style.height = '600px';
+            }
+        }
+
+        // Fullscreen functionality
+        const fullscreenBtn = document.getElementById('fullscreen-btn');
+        const startBtn = document.getElementById('start-btn');
+        
+        fullscreenBtn.addEventListener('click', () => {
+            if (canvas.requestFullscreen) {
+                canvas.requestFullscreen();
+            } else if (canvas.webkitRequestFullscreen) {
+                canvas.webkitRequestFullscreen();
+            } else if (canvas.msRequestFullscreen) {
+                canvas.msRequestFullscreen();
+            }
+        });
+        
+        startBtn.addEventListener('click', () => {
+            // Focus the canvas to enable keyboard input
+            canvas.focus();
+            startBtn.textContent = '🎮 Game Started!';
+            startBtn.disabled = true;
+        });
+        
+        // Load WebAssembly
+        showLoading();
+        WebAssembly.instantiateStreaming(fetch("lbbaspack.wasm"), go.importObject)
+            .then(result => {
+                hideLoading();
+                
+                // Run the Go WebAssembly
+                go.run(result.instance);
+                
+                // Wait for Ebiten to create its canvas, then style it
+                setTimeout(() => {
+                    const ebitenCanvas = document.querySelector('canvas');
+                    if (ebitenCanvas) {
+                        // Remove the placeholder
+                        canvasPlaceholder.remove();
+                        
+                        // Move Ebiten's canvas to our container
+                        const gameContainer = document.querySelector('.game-container');
+                        const gameControls = document.querySelector('.game-controls');
+                        gameContainer.insertBefore(ebitenCanvas, gameControls);
+                        
+                        // Apply our styling to Ebiten's canvas
+                        ebitenCanvas.id = 'canvas';
+                        ebitenCanvas.tabIndex = '0';
+                        ebitenCanvas.style.width = '100%';
+                        ebitenCanvas.style.minWidth = '800px';
+                        ebitenCanvas.style.maxWidth = '800px';
+                        ebitenCanvas.style.minHeight = '600px';
+                        ebitenCanvas.style.maxHeight = '600px';
+                        ebitenCanvas.style.height = '600px';
+                        ebitenCanvas.style.margin = '0 auto';
+                        ebitenCanvas.style.borderRadius = '4px';
+                        ebitenCanvas.style.outline = 'none';
+                        ebitenCanvas.style.cursor = 'crosshair';
+                        
+                        // Update our canvas reference
+                        canvas = ebitenCanvas;
+                        
+                        // Set up event listeners
+                        fullscreenBtn.addEventListener('click', () => {
+                            if (canvas.requestFullscreen) {
+                                canvas.requestFullscreen();
+                            } else if (canvas.webkitRequestFullscreen) {
+                                canvas.webkitRequestFullscreen();
+                            } else if (canvas.msRequestFullscreen) {
+                                canvas.msRequestFullscreen();
+                            }
+                        });
+                        
+                        startBtn.addEventListener('click', () => {
+                            canvas.focus();
+                            startBtn.textContent = '🎮 Game Started!';
+                            startBtn.disabled = true;
+                        });
+                        
+                        // Initial resize and set up resize listener
+                        resizeCanvas();
+                        window.addEventListener('resize', resizeCanvas);
+                    }
+                }, 200);
+            })
+            .catch(err => {
+                showError('Failed to load WebAssembly game: ' + err.message);
+                console.error('WebAssembly loading error:', err);
+            });
+    </script>
+</body>
+</html> 
