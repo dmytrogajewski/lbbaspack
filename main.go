@@ -294,7 +294,7 @@ func (g *Game) cleanupGameEntities() {
 func main() {
 	ebiten.SetWindowSize(800, 600)
 	ebiten.SetWindowTitle("LBaaS Packet Catcher - ECS Edition")
-	ebiten.SetFullscreen(true)
+	// Don't set fullscreen automatically for WebAssembly - let user request it
 	ebiten.SetWindowResizingMode(ebiten.WindowResizingModeEnabled)
 
 	game := NewGame()

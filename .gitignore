@@ -1,3 +1,73 @@
+# Build artifacts
 dist/
 bin/
+build/
 coverage/
+
+# WebAssembly artifacts
+*.wasm
+wasm/server
+
+# Go specific
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+go.work
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# Logs and temporary files
+*.log
+*.tmp
+*.temp
+*.prof
+*.trace
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Backup files
+*.bak
+*.backup
+*.old
+
+# Package manager files
+node_modules/
+vendor/
+
+# Test coverage
+coverage.out
+coverage.html
+*.cover
+
+# Profiling files
+cpu.prof
+mem.prof
+block.prof
+mutex.prof
+
+# Local configuration
+config.local.*
+settings.local.*
