@@ -115,6 +115,17 @@ func (ute *uiTestEntity) GetPowerUpType() components.PowerUpTypeComponent {
 	return nil
 }
 
+func (ute *uiTestEntity) GetRouting() components.RoutingComponent {
+	if comp := ute.entity.GetComponent("Routing"); comp != nil {
+		return comp.(components.RoutingComponent)
+	}
+	return nil
+}
+
+func (ute *uiTestEntity) RemoveComponent(componentType string) {
+	ute.entity.RemoveComponent(componentType)
+}
+
 func (ute *uiTestEntity) AddComponent(component components.Component) {
 	ute.componentsAdded = append(ute.componentsAdded, component.GetType())
 	ute.entity.AddComponent(component)

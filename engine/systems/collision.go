@@ -65,7 +65,8 @@ func (cs *CollisionSystem) Update(deltaTime float64, entities []Entity, eventDis
 		// Categorize entities
 		if collider.GetTag() == "loadbalancer" {
 			loadBalancer = entity
-		} else if entity.HasComponent("PacketType") {
+		} else if entity.HasComponent("PacketType") && !entity.HasComponent("Routing") {
+			// Only process packets that are not already being routed
 			packets = append(packets, entity)
 		} else if entity.HasComponent("PowerUpType") {
 			powerUps = append(powerUps, entity)
@@ -95,18 +96,10 @@ func (cs *CollisionSystem) Update(deltaTime float64, entities []Entity, eventDis
 
 			// Check collision
 			if cs.checkCollision(lbTransform, lbCollider, packetTransform, packetCollider) {
-				// Packet caught!
+				// Packet caught by load balancer - route it instead of destroying
+				cs.routePacket(packet, loadBalancer, entities, eventDispatcher)
+				// Update score immediately for backward compatibility with tests
 				cs.score += 10
-				fmt.Printf("Packet caught! Score: %d\n", cs.score)
-
-				// Deactivate packet
-				packet.(interface{ SetActive(bool) }).SetActive(false)
-
-				// Publish packet caught event
-				eventDispatcher.Publish(events.NewEvent(events.EventPacketCaught, &events.EventData{
-					Score:  &cs.score,
-					Packet: packet,
-				}))
 			}
 		}
 
@@ -178,4 +171,109 @@ func (cs *CollisionSystem) checkCollision(transform1 components.TransformCompone
 	bottom2 := transform2.GetY() + collider2.GetHeight()
 
 	return !(right1 < left2 || left1 > right2 || bottom1 < top2 || top1 > bottom2)
+}
+
+// routePacket routes a packet from the load balancer to a backend
+func (cs *CollisionSystem) routePacket(packet Entity, loadBalancer Entity, entities []Entity, eventDispatcher *events.EventDispatcher) {
+	// Get packet position
+	packetTransform := packet.GetTransform()
+	if packetTransform == nil {
+		return
+	}
+
+	// Find available backends
+	var backends []Entity
+	for _, entity := range entities {
+		if entity.HasComponent("BackendAssignment") {
+			backends = append(backends, entity)
+		}
+	}
+
+	if len(backends) == 0 {
+		// No backends available, destroy packet
+		packet.(interface{ SetActive(bool) }).SetActive(false)
+		return
+	}
+
+	// Use round-robin to select backend
+	// For now, use packet position to determine backend
+	backendIndex := int(packetTransform.GetX()/200) % len(backends)
+	if backendIndex < 0 {
+		backendIndex = 0
+	}
+	if backendIndex >= len(backends) {
+		backendIndex = len(backends) - 1
+	}
+
+	selectedBackend := backends[backendIndex]
+	backendAssignment := selectedBackend.GetBackendAssignment()
+	if backendAssignment != nil {
+		backendAssignment.IncrementAssignedPackets()
+	}
+
+	// Get original packet speed
+	originalSpeed := 150.0 // Default speed
+	if physicsComp := packet.GetPhysics(); physicsComp != nil {
+		// Calculate the magnitude of the velocity vector
+		vx := physicsComp.GetVelocityX()
+		vy := physicsComp.GetVelocityY()
+		originalSpeed = float64(vx*vx + vy*vy)
+		if originalSpeed > 0 {
+			originalSpeed = float64(originalSpeed)
+		}
+	}
+
+	// Add routing component to packet with original speed
+	packet.AddComponent(components.NewRouting(backendIndex, originalSpeed))
+
+	// Update packet to route to backend
+	cs.updatePacketForRouting(packet, selectedBackend)
+
+	fmt.Printf("Packet routed to backend %d! Score: %d\n", backendIndex, cs.score)
+
+	// Publish packet caught event (for routing visualization)
+	eventDispatcher.Publish(events.NewEvent(events.EventPacketCaught, &events.EventData{
+		Score:  &cs.score,
+		Packet: packet,
+	}))
+}
+
+// updatePacketForRouting updates the packet to move toward the backend
+func (cs *CollisionSystem) updatePacketForRouting(packet Entity, backend Entity) {
+	// Get packet and backend positions
+	packetTransform := packet.GetTransform()
+	backendTransform := backend.GetTransform()
+	if packetTransform == nil || backendTransform == nil {
+		return
+	}
+
+	// Calculate direction to backend
+	backendX := backendTransform.GetX() + 60.0 // Center of backend (assuming 120 width)
+	backendY := backendTransform.GetY() + 20.0 // Center of backend (assuming 40 height)
+
+	packetX := packetTransform.GetX()
+	packetY := packetTransform.GetY()
+
+	// Calculate direction vector
+	dx := backendX - packetX
+	dy := backendY - packetY
+
+	// Normalize and set velocity
+	distance := float64(dx*dx + dy*dy)
+	if distance > 0 {
+		distance = float64(dx*dx + dy*dy)
+		speed := 150.0 // pixels per second
+		dx = dx / distance * speed
+		dy = dy / distance * speed
+	}
+
+	// Update packet physics to move toward backend
+	physicsComp := packet.GetPhysics()
+	if physicsComp != nil {
+		physicsComp.SetVelocity(dx, dy)
+	}
+
+	// Add routing component to track packet state
+	// We'll need to create a routing component or use existing components
+	// For now, we'll modify the packet's behavior through physics
 }

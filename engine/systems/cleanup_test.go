@@ -73,6 +73,7 @@ func (e *mockCleanupEntity) GetSLA() components.SLAComponent                    
 func (e *mockCleanupEntity) GetPacketType() components.PacketTypeComponent               { return nil }
 func (e *mockCleanupEntity) GetPowerUpType() components.PowerUpTypeComponent             { return nil }
 func (e *mockCleanupEntity) GetBackendAssignment() components.BackendAssignmentComponent { return nil }
+func (e *mockCleanupEntity) GetRouting() components.RoutingComponent                     { return nil }
 
 func TestCleanupSystem_Update(t *testing.T) {
 	cs := NewCleanupSystem()

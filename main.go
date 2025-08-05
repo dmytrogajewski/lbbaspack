@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"log"
+	"os"
 
 	"lbbaspack/engine/components"
 	"lbbaspack/engine/ecs"
@@ -167,11 +168,30 @@ func NewGame() *Game {
 		}
 	})
 
+	// Add handler for exit event
+	eventDispatcher.Subscribe(events.EventExit, func(event *events.Event) {
+		fmt.Println("Exit event received, shutting down game")
+		os.Exit(0)
+	})
+
 	return game
 }
 
 func (g *Game) Update() error {
 	deltaTime := 1.0 / 60.0 // 60 FPS
+
+	// Always update input system for global keyboard shortcuts (like Ctrl+X)
+	entitiesInterface := make([]systems.Entity, len(g.World.Entities))
+	for i, entity := range g.World.Entities {
+		entitiesInterface[i] = entity
+	}
+
+	// Get input system from system manager and update it
+	if g.systemManager != nil {
+		if inputSys, exists := g.systemManager.GetSystem(systems.SystemTypeInput); exists {
+			inputSys.Update(deltaTime, entitiesInterface, g.eventDispatcher)
+		}
+	}
 
 	// Debug: Print current game state
 	fmt.Printf("[Game] Current game state: %v\n", g.gameState)
@@ -182,21 +202,11 @@ func (g *Game) Update() error {
 		fmt.Println("[Game] In menu state - updating menu system only")
 		// Menu system handles its own update
 		if g.MenuSys != nil {
-			// Convert entities to interface type
-			entitiesInterface := make([]systems.Entity, len(g.World.Entities))
-			for i, entity := range g.World.Entities {
-				entitiesInterface[i] = entity
-			}
 			g.MenuSys.Update(deltaTime, entitiesInterface, g.eventDispatcher)
 		}
 	case components.StatePlaying:
 		fmt.Println("[Game] In playing state - updating all systems")
 		// Update all systems using the system manager
-		entitiesInterface := make([]systems.Entity, len(g.World.Entities))
-		for i, entity := range g.World.Entities {
-			entitiesInterface[i] = entity
-		}
-
 		g.systemManager.UpdateAll(deltaTime, entitiesInterface, g.eventDispatcher)
 
 		// Update UI system separately since it's not in the system manager

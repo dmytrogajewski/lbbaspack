@@ -544,3 +544,15 @@ func (me *mockEntity) GetBackendAssignment() components.BackendAssignmentCompone
 func (me *mockEntity) GetPowerUpType() components.PowerUpTypeComponent {
 	return nil
 }
+
+func (me *mockEntity) GetRouting() components.RoutingComponent {
+	return nil
+}
+
+func (me *mockEntity) AddComponent(component components.Component) {
+	// Mock implementation
+}
+
+func (me *mockEntity) RemoveComponent(componentType string) {
+	// Mock implementation
+}

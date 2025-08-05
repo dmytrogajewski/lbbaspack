@@ -91,3 +91,13 @@ type PowerUpTypeComponent interface {
 	GetDuration() float64
 	GetEffect() string
 }
+
+// RoutingComponent represents routing functionality
+type RoutingComponent interface {
+	Component
+	GetTargetBackendID() int
+	IsPacketRouted() bool
+	GetRouteProgress() float64
+	SetRouteProgress(progress float64)
+	GetOriginalSpeed() float64
+}

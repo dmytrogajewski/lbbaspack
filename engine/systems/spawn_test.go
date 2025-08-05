@@ -99,6 +99,10 @@ func (ste *spawnTestEntity) GetPowerUpType() components.PowerUpTypeComponent {
 	return ste.entity.GetPowerUpType()
 }
 
+func (ste *spawnTestEntity) GetRouting() components.RoutingComponent {
+	return ste.entity.GetRouting()
+}
+
 func TestNewSpawnSystem(t *testing.T) {
 	spawnCallback := func() Entity {
 		return newSpawnTestEntity(1)

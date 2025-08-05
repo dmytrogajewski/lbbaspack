@@ -13,10 +13,12 @@ const (
 	EventGameOver         EventType = "game_over"
 	EventGameStart        EventType = "game_start"
 	EventReturnToMenu     EventType = "return_to_menu"
+	EventExit             EventType = "exit"
 	EventSLAUpdated       EventType = "sla_updated"
 	EventLevelUp          EventType = "level_up"
 	EventDDoSStart        EventType = "ddos_start"
 	EventDDoSEnd          EventType = "ddos_end"
+	EventPacketDelivered  EventType = "packet_delivered"
 )
 
 // EventData represents typed event data
@@ -38,6 +40,7 @@ type EventData struct {
 	Mode        *int
 	SLA         *float64
 	Errors      *int
+	BackendID   *int
 }
 
 // Event represents a game event

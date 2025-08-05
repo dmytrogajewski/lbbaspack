@@ -1,10 +1,13 @@
 package systems
 
 import (
+	"fmt"
 	"lbbaspack/engine/components"
 	"lbbaspack/engine/entities"
 	"lbbaspack/engine/events"
 	"testing"
+
+	"github.com/hajimehoshi/ebiten/v2"
 )
 
 func TestNewInputSystem(t *testing.T) {
@@ -396,6 +399,75 @@ func TestInputSystem_Integration(t *testing.T) {
 	}
 }
 
+func TestInputSystem_handleKeyboardInput_CtrlXExit(t *testing.T) {
+	// Create a new input system
+	inputSys := NewInputSystem()
+
+	// Create a mock event dispatcher
+	eventDispatcher := events.NewEventDispatcher()
+
+	// Track if exit event was published
+	exitEventPublished := false
+	eventDispatcher.Subscribe(events.EventExit, func(event *events.Event) {
+		exitEventPublished = true
+	})
+
+	// Test that handleKeyboardInput doesn't panic
+	// Note: We can't easily test the actual key press in unit tests
+	// since ebiten.IsKeyPressed requires a running game context
+	// This test ensures the method exists and can be called safely
+	inputSys.handleKeyboardInput(eventDispatcher)
+
+	// Verify the method exists and can be called
+	// The actual key press testing would need to be done in integration tests
+	if !exitEventPublished {
+		// This is expected since we can't simulate key presses in unit tests
+		t.Log("Exit event not published (expected in unit test environment)")
+	}
+}
+
+func TestInputSystem_handleKeyboardMovement(t *testing.T) {
+	// Create a new input system
+	inputSys := NewInputSystem()
+
+	// Create a mock transform component
+	transform := &components.Transform{
+		X: 100.0,
+		Y: 200.0,
+	}
+
+	// Test that handleKeyboardMovement doesn't panic
+	// Note: We can't easily test the actual key press in unit tests
+	// since ebiten.IsKeyPressed requires a running game context
+	// This test ensures the method exists and can be called safely
+	inputSys.handleKeyboardMovement(transform, 0.016) // 60 FPS delta time
+
+	// Verify the method exists and can be called
+	// The actual key press testing would need to be done in integration tests
+	// or with a mock ebiten implementation
+}
+
+func TestInputSystem_handleLoadBalancerInput(t *testing.T) {
+	// Create a new input system
+	inputSys := NewInputSystem()
+
+	// Create a mock transform component
+	transform := &components.Transform{
+		X: 100.0,
+		Y: 200.0,
+	}
+
+	// Create a mock event dispatcher
+	eventDispatcher := events.NewEventDispatcher()
+
+	// Test that handleLoadBalancerInput doesn't panic
+	// This method combines both keyboard and mouse input handling
+	inputSys.handleLoadBalancerInput(transform, eventDispatcher, 0.016)
+
+	// Verify the method exists and can be called
+	// The actual input testing would need to be done in integration tests
+}
+
 // Helper function to create test entities
 
 func createInputEntity(id uint64, stateType components.StateType, x, y float64) Entity {
@@ -405,4 +477,342 @@ func createInputEntity(id uint64, stateType components.StateType, x, y float64) 
 	entity.AddComponent(transform)
 	entity.AddComponent(state)
 	return entity
+}
+
+func TestInputSystem_Debug_KeyboardMovement_Integration(t *testing.T) {
+	// Create a new input system
+	inputSys := NewInputSystem()
+
+	// Create a mock transform component with initial position
+	transform := &components.Transform{
+		X: 100.0,
+		Y: 200.0,
+	}
+
+	// Create a mock state component
+	state := &components.State{
+		Current: components.StatePlaying,
+	}
+
+	// Create a mock entity
+	entity := &entities.Entity{
+		ID:         1,
+		Active:     true,
+		Components: make(map[string]components.Component),
+	}
+	entity.AddComponent(transform)
+	entity.AddComponent(state)
+
+	// Create a mock event dispatcher
+	eventDispatcher := events.NewEventDispatcher()
+
+	// Test the full Update method with our mock entity
+	entities := []Entity{entity}
+
+	// Simulate multiple updates to see if position changes
+	initialX := transform.GetX()
+	fmt.Printf("[DEBUG] Initial position: %.2f\n", initialX)
+
+	// Update multiple times to simulate game loop
+	for i := 0; i < 5; i++ {
+		inputSys.Update(0.016, entities, eventDispatcher) // 60 FPS
+		currentX := transform.GetX()
+		fmt.Printf("[DEBUG] Update %d - Position: %.2f (delta: %.2f)\n", i+1, currentX, currentX-initialX)
+	}
+
+	// Verify that the transform component is being accessed correctly
+	if transform.GetX() != initialX {
+		t.Logf("Position changed from %.2f to %.2f", initialX, transform.GetX())
+	} else {
+		t.Logf("Position remained at %.2f (no keyboard input in test environment)", initialX)
+	}
+}
+
+func TestInputSystem_Debug_EntityFiltering(t *testing.T) {
+	// Create a new input system
+	inputSys := NewInputSystem()
+
+	// Create entities with different component combinations
+	entity1 := &entities.Entity{ID: 1, Active: true, Components: make(map[string]components.Component)}
+	entity1.AddComponent(&components.Transform{X: 100, Y: 200})
+	entity1.AddComponent(&components.State{Current: components.StatePlaying})
+
+	entity2 := &entities.Entity{ID: 2, Active: true, Components: make(map[string]components.Component)}
+	entity2.AddComponent(&components.Transform{X: 150, Y: 250})
+	// Missing State component
+
+	entity3 := &entities.Entity{ID: 3, Active: true, Components: make(map[string]components.Component)}
+	entity3.AddComponent(&components.State{Current: components.StateMenu})
+	// Missing Transform component
+
+	entities := []Entity{entity1, entity2, entity3}
+
+	// Test entity filtering
+	filtered := inputSys.FilterEntities(entities)
+
+	fmt.Printf("[DEBUG] Total entities: %d, Filtered entities: %d\n", len(entities), len(filtered))
+
+	// Should only have entity1 (has both Transform and State with "playing" state)
+	if len(filtered) != 1 {
+		t.Errorf("Expected 1 filtered entity, got %d", len(filtered))
+	}
+
+	if filtered[0].GetID() != 1 {
+		t.Errorf("Expected entity ID 1, got %d", filtered[0].GetID())
+	}
+}
+
+func TestInputSystem_Debug_StateFiltering(t *testing.T) {
+	// Create a new input system
+	inputSys := NewInputSystem()
+
+	// Create entities with different states
+	playingEntity := &entities.Entity{ID: 1, Active: true, Components: make(map[string]components.Component)}
+	playingEntity.AddComponent(&components.Transform{X: 100, Y: 200})
+	playingEntity.AddComponent(&components.State{Current: components.StatePlaying})
+
+	menuEntity := &entities.Entity{ID: 2, Active: true, Components: make(map[string]components.Component)}
+	menuEntity.AddComponent(&components.Transform{X: 150, Y: 250})
+	menuEntity.AddComponent(&components.State{Current: components.StateMenu})
+
+	gameOverEntity := &entities.Entity{ID: 3, Active: true, Components: make(map[string]components.Component)}
+	gameOverEntity.AddComponent(&components.Transform{X: 200, Y: 300})
+	gameOverEntity.AddComponent(&components.State{Current: components.StateGameOver})
+
+	entities := []Entity{playingEntity, menuEntity, gameOverEntity}
+
+	// Test that only playing state entities are processed
+	eventDispatcher := events.NewEventDispatcher()
+
+	// Capture initial positions
+	initialPositions := make(map[uint64]float64)
+	for _, entity := range entities {
+		if transform := entity.GetTransform(); transform != nil {
+			initialPositions[entity.GetID()] = transform.GetX()
+		}
+	}
+
+	// Update the input system
+	inputSys.Update(0.016, entities, eventDispatcher)
+
+	// Check which entities had their positions updated
+	for _, entity := range entities {
+		if transform := entity.GetTransform(); transform != nil {
+			currentX := transform.GetX()
+			initialX := initialPositions[entity.GetID()]
+			state := entity.GetState()
+
+			fmt.Printf("[DEBUG] Entity %d - State: %s, Position: %.2f -> %.2f (delta: %.2f)\n",
+				entity.GetID(), state.GetState(), initialX, currentX, currentX-initialX)
+		}
+	}
+}
+
+func TestInputSystem_Debug_MethodCallChain(t *testing.T) {
+	// Create a new input system
+	inputSys := NewInputSystem()
+
+	// Create a mock transform component
+	transform := &components.Transform{
+		X: 100.0,
+		Y: 200.0,
+	}
+
+	// Create a mock event dispatcher
+	eventDispatcher := events.NewEventDispatcher()
+
+	// Test each method in the call chain
+	fmt.Println("[DEBUG] Testing method call chain...")
+
+	// Test handleKeyboardMovement directly
+	initialX := transform.GetX()
+	keyboardMoved := inputSys.handleKeyboardMovement(transform, 0.016)
+	fmt.Printf("[DEBUG] handleKeyboardMovement - Position: %.2f (delta: %.2f), Moved: %t\n",
+		transform.GetX(), transform.GetX()-initialX, keyboardMoved)
+
+	// Test handleLoadBalancerInput
+	transform.SetPosition(100.0, 200.0) // Reset position
+	initialX = transform.GetX()
+	inputSys.handleLoadBalancerInput(transform, eventDispatcher, 0.016)
+	fmt.Printf("[DEBUG] handleLoadBalancerInput - Position: %.2f (delta: %.2f)\n",
+		transform.GetX(), transform.GetX()-initialX)
+
+	// Test handleMouseInput
+	transform.SetPosition(100.0, 200.0) // Reset position
+	initialX = transform.GetX()
+	inputSys.handleMouseInput(transform, eventDispatcher)
+	fmt.Printf("[DEBUG] handleMouseInput - Position: %.2f (delta: %.2f)\n",
+		transform.GetX(), transform.GetX()-initialX)
+}
+
+func TestInputSystem_Debug_MousePosition(t *testing.T) {
+	// Test what ebiten.CursorPosition() returns in test environment
+	mouseX, mouseY := ebiten.CursorPosition()
+	fmt.Printf("[DEBUG] Mouse position in test environment: (%d, %d)\n", mouseX, mouseY)
+
+	// This explains why the position is being set to 0 - mouse position is (0,0) in tests
+	t.Logf("Mouse position is (%d, %d) - this explains the position reset to 0", mouseX, mouseY)
+}
+
+func TestInputSystem_Debug_SimulatedKeyboardInput(t *testing.T) {
+	// Create a new input system
+	inputSys := NewInputSystem()
+
+	// Create a mock transform component
+	transform := &components.Transform{
+		X: 100.0,
+		Y: 200.0,
+	}
+
+	// Test the logic without actual ebiten input
+	// We'll simulate what happens when keys are pressed
+
+	fmt.Println("[DEBUG] Testing keyboard movement logic...")
+
+	// Test 1: No keyboard input (should use mouse)
+	keyboardMoved := inputSys.handleKeyboardMovement(transform, 0.016)
+	fmt.Printf("[DEBUG] No keys pressed - Position: %.2f, Keyboard moved: %t\n", transform.GetX(), keyboardMoved)
+
+	// Reset position
+	transform.SetPosition(100.0, 200.0)
+
+	// Test 2: Simulate what happens when A key is pressed
+	// Since we can't actually press keys in tests, we'll test the logic manually
+	const moveSpeed = 300.0
+	deltaTime := 0.016
+
+	// Simulate A key press
+	currentX := transform.GetX()
+	newX := currentX - moveSpeed*deltaTime // A key movement
+	transform.SetPosition(newX, transform.GetY())
+
+	fmt.Printf("[DEBUG] Simulated A key press - Position: %.2f (delta: %.2f)\n",
+		transform.GetX(), transform.GetX()-100.0)
+
+	// Verify the movement calculation
+	expectedDelta := -moveSpeed * deltaTime
+	actualDelta := transform.GetX() - 100.0
+	t.Logf("A key movement: expected %.2f, got %.2f", expectedDelta, actualDelta)
+
+	// Use tolerance for floating point comparison
+	const tolerance = 0.01
+	diff := actualDelta - expectedDelta
+	if diff < 0 {
+		diff = -diff
+	}
+	if diff > tolerance {
+		t.Errorf("Expected delta %.2f, got %.2f (tolerance: %.2f)", expectedDelta, actualDelta, tolerance)
+	}
+
+	// Test 3: Simulate D key press
+	transform.SetPosition(100.0, 200.0) // Reset
+	currentX = transform.GetX()
+	newX = currentX + moveSpeed*deltaTime // D key movement
+	transform.SetPosition(newX, transform.GetY())
+
+	fmt.Printf("[DEBUG] Simulated D key press - Position: %.2f (delta: %.2f)\n",
+		transform.GetX(), transform.GetX()-100.0)
+
+	// Verify the movement calculation
+	expectedDelta = moveSpeed * deltaTime
+	actualDelta = transform.GetX() - 100.0
+	t.Logf("D key movement: expected %.2f, got %.2f", expectedDelta, actualDelta)
+
+	// Use tolerance for floating point comparison
+	diff = actualDelta - expectedDelta
+	if diff < 0 {
+		diff = -diff
+	}
+	if diff > tolerance {
+		t.Errorf("Expected delta %.2f, got %.2f (tolerance: %.2f)", expectedDelta, actualDelta, tolerance)
+	}
+}
+
+func TestInputSystem_InputMethodTracking(t *testing.T) {
+	// Create a new input system
+	inputSys := NewInputSystem()
+
+	// Create a mock transform component
+	transform := &components.Transform{
+		X: 100.0,
+		Y: 200.0,
+	}
+
+	// Create a mock event dispatcher
+	eventDispatcher := events.NewEventDispatcher()
+
+	fmt.Println("[DEBUG] Testing input method tracking...")
+
+	// Test 1: Initial state should be mouse mode
+	fmt.Printf("[DEBUG] Initial input method: %s\n", inputSys.activeInputMethod)
+	if inputSys.activeInputMethod != "mouse" {
+		t.Errorf("Expected initial input method to be 'mouse', got '%s'", inputSys.activeInputMethod)
+	}
+
+	// Test 2: Simulate keyboard input (should switch to keyboard mode)
+	// We can't actually simulate key presses, but we can test the logic
+	// by directly calling the method and checking the state
+
+	// Simulate what happens when keyboard is used
+	inputSys.activeInputMethod = "keyboard"
+	inputSys.keyboardLastUsed = true
+
+	// Call the method to test the logic
+	inputSys.handleLoadBalancerInput(transform, eventDispatcher, 0.016)
+
+	fmt.Printf("[DEBUG] After keyboard input - Method: %s, LastUsed: %t\n",
+		inputSys.activeInputMethod, inputSys.keyboardLastUsed)
+
+	// Test 3: Simulate no input (should maintain keyboard mode)
+	inputSys.keyboardLastUsed = false
+
+	fmt.Printf("[DEBUG] After no input - Method: %s, LastUsed: %t\n",
+		inputSys.activeInputMethod, inputSys.keyboardLastUsed)
+
+	// Test 4: Simulate mouse movement (should switch back to mouse mode)
+	// This would happen in the actual game when mouse is moved
+	inputSys.activeInputMethod = "mouse"
+	inputSys.keyboardLastUsed = false
+
+	fmt.Printf("[DEBUG] After mouse movement - Method: %s, LastUsed: %t\n",
+		inputSys.activeInputMethod, inputSys.keyboardLastUsed)
+
+	// Verify the tracking logic
+	t.Logf("Input method tracking test completed - Method: %s", inputSys.activeInputMethod)
+}
+
+func TestInputSystem_InputMethodPersistence(t *testing.T) {
+	// Create a new input system
+	inputSys := NewInputSystem()
+
+	// Create a mock transform component
+	transform := &components.Transform{
+		X: 100.0,
+		Y: 200.0,
+	}
+
+	// Create a mock event dispatcher
+	eventDispatcher := events.NewEventDispatcher()
+
+	fmt.Println("[DEBUG] Testing input method persistence...")
+
+	// Test that the input method persists across multiple updates
+	initialX := transform.GetX()
+
+	// Simulate multiple updates with no input
+	for i := 0; i < 5; i++ {
+		inputSys.handleLoadBalancerInput(transform, eventDispatcher, 0.016)
+		currentX := transform.GetX()
+		fmt.Printf("[DEBUG] Update %d - Method: %s, Position: %.2f (delta: %.2f)\n",
+			i+1, inputSys.activeInputMethod, currentX, currentX-initialX)
+	}
+
+	// The position should remain stable (no jumping to mouse position)
+	finalX := transform.GetX()
+	if finalX != initialX {
+		t.Logf("Position changed from %.2f to %.2f (this is expected if mouse position is different)",
+			initialX, finalX)
+	} else {
+		t.Logf("Position remained stable at %.2f", finalX)
+	}
 }

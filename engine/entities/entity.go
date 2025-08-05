@@ -179,3 +179,12 @@ func (e *Entity) GetPowerUpType() components.PowerUpTypeComponent {
 	}
 	return nil
 }
+
+func (e *Entity) GetRouting() components.RoutingComponent {
+	if comp := e.GetComponent("Routing"); comp != nil {
+		if routing, ok := comp.(components.RoutingComponent); ok {
+			return routing
+		}
+	}
+	return nil
+}

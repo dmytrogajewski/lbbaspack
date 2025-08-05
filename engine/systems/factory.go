@@ -35,6 +35,7 @@ func (sf *SystemFactory) CreateSystemManager() (*SystemManager, error) {
 	gameStateSys := NewGameStateSystem()
 	particleSys := NewParticleSystem()
 	routingSys := NewRoutingSystem()
+	packetRoutingSys := NewPacketRoutingSystem()
 	cleanupSys := NewCleanupSystem()
 
 	// Register all ECS systems using SystemInfoer
@@ -50,6 +51,7 @@ func (sf *SystemFactory) CreateSystemManager() (*SystemManager, error) {
 		gameStateSys,
 		particleSys,
 		routingSys,
+		packetRoutingSys,
 		cleanupSys,
 	}
 
@@ -73,6 +75,7 @@ func (sf *SystemFactory) CreateSystemManager() (*SystemManager, error) {
 	gameStateSys.Initialize(sf.eventDispatcher)
 	particleSys.Initialize(sf.eventDispatcher)
 	routingSys.Initialize(sf.eventDispatcher)
+	packetRoutingSys.Initialize(sf.eventDispatcher)
 	cleanupSys.Initialize(sf.eventDispatcher)
 
 	// Print execution order for debugging

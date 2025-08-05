@@ -723,6 +723,19 @@ func (m *MockEntity) GetPowerUpType() components.PowerUpTypeComponent {
 	return nil
 }
 
+func (m *MockEntity) GetRouting() components.RoutingComponent {
+	if comp := m.components["Routing"]; comp != nil {
+		if routingComp, ok := comp.(components.RoutingComponent); ok {
+			return routingComp
+		}
+	}
+	return nil
+}
+
+func (m *MockEntity) RemoveComponent(componentType string) {
+	delete(m.components, componentType)
+}
+
 func (m *MockEntity) IsActive() bool {
 	return true
 }

@@ -13,6 +13,8 @@ type Entity interface {
 	HasComponent(componentType string) bool
 	IsActive() bool
 	GetComponentByName(typeName string) components.Component
+	AddComponent(component components.Component)
+	RemoveComponent(componentType string)
 	// Type-safe component getters
 	GetTransform() components.TransformComponent
 	GetSprite() components.SpriteComponent
@@ -24,6 +26,7 @@ type Entity interface {
 	GetSLA() components.SLAComponent
 	GetBackendAssignment() components.BackendAssignmentComponent
 	GetPowerUpType() components.PowerUpTypeComponent
+	GetRouting() components.RoutingComponent
 }
 
 // System represents a game system that processes entities

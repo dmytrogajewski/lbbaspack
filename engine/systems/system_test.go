@@ -111,6 +111,17 @@ func (ste *systemTestEntity) GetPowerUpType() components.PowerUpTypeComponent {
 	return nil
 }
 
+func (ste *systemTestEntity) GetRouting() components.RoutingComponent {
+	if comp := ste.entity.GetComponent("Routing"); comp != nil {
+		return comp.(components.RoutingComponent)
+	}
+	return nil
+}
+
+func (ste *systemTestEntity) RemoveComponent(componentType string) {
+	ste.entity.RemoveComponent(componentType)
+}
+
 func (ste *systemTestEntity) AddComponent(component components.Component) {
 	ste.componentsAdded = append(ste.componentsAdded, component.GetType())
 	ste.entity.AddComponent(component)
