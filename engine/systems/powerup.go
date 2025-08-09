@@ -2,6 +2,7 @@ package systems
 
 import (
 	"fmt"
+	"lbbaspack/engine/components"
 	"lbbaspack/engine/events"
 )
 
@@ -9,17 +10,13 @@ const SystemTypePowerUp SystemType = "powerup"
 
 type PowerUpSystem struct {
 	BaseSystem
-	activePowerUps map[string]float64 // powerup name -> remaining time
 }
 
 func NewPowerUpSystem() *PowerUpSystem {
 	return &PowerUpSystem{
 		BaseSystem: BaseSystem{
-			RequiredComponents: []string{
-				"PowerUpType",
-			},
+			RequiredComponents: []string{},
 		},
-		activePowerUps: make(map[string]float64),
 	}
 }
 
@@ -38,24 +35,34 @@ func (pus *PowerUpSystem) GetSystemInfo() *SystemInfo {
 }
 
 func (pus *PowerUpSystem) Update(deltaTime float64, entities []Entity, eventDispatcher *events.EventDispatcher) {
-	// Update active power-ups
-	for powerUpName, remainingTime := range pus.activePowerUps {
-		pus.activePowerUps[powerUpName] = remainingTime - deltaTime
-		if pus.activePowerUps[powerUpName] <= 0 {
-			delete(pus.activePowerUps, powerUpName)
-			fmt.Printf("Power-up %s expired\n", powerUpName)
+	// Find PowerUpState component holder
+	var state *components.PowerUpState
+	for _, e := range entities {
+		if comp := e.GetComponentByName("PowerUpState"); comp != nil {
+			if ps, ok := comp.(*components.PowerUpState); ok {
+				state = ps
+				break
+			}
+		}
+	}
+	if state == nil {
+		// If no holder, nothing to update
+		return
+	}
+
+	// Update active power-ups in component
+	for name, rem := range state.RemainingByName {
+		newRem := rem - deltaTime
+		if newRem <= 0 {
+			delete(state.RemainingByName, name)
+			fmt.Printf("Power-up %s expired\n", name)
+		} else {
+			state.RemainingByName[name] = newRem
 		}
 	}
 }
 
-func (pus *PowerUpSystem) Initialize(eventDispatcher *events.EventDispatcher) {
-	// Listen for power-up collected events
-	eventDispatcher.Subscribe(events.EventPowerUpCollected, func(event *events.Event) {
-		if event.Data.Powerup != nil {
-			pus.activatePowerUp(*event.Data.Powerup, eventDispatcher)
-		}
-	})
-}
+func (pus *PowerUpSystem) Initialize(eventDispatcher *events.EventDispatcher) {}
 
 func (pus *PowerUpSystem) activatePowerUp(powerUpName string, eventDispatcher *events.EventDispatcher) {
 	// Set default duration for power-ups
@@ -71,7 +78,7 @@ func (pus *PowerUpSystem) activatePowerUp(powerUpName string, eventDispatcher *e
 		duration = 12.0
 	}
 
-	pus.activePowerUps[powerUpName] = duration
+	// Note: In the stateless model, activation should be performed by a caller that has access to PowerUpState.
 	fmt.Printf("Power-up %s activated for %.1f seconds\n", powerUpName, duration)
 
 	// Publish power-up activated event
@@ -81,11 +88,4 @@ func (pus *PowerUpSystem) activatePowerUp(powerUpName string, eventDispatcher *e
 	}))
 }
 
-func (pus *PowerUpSystem) IsPowerUpActive(powerUpName string) bool {
-	_, active := pus.activePowerUps[powerUpName]
-	return active
-}
-
-func (pus *PowerUpSystem) GetActivePowerUps() map[string]float64 {
-	return pus.activePowerUps
-}
+// Removed stateful getters

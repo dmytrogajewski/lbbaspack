@@ -10,7 +10,6 @@ const SystemTypeCollision SystemType = "collision"
 
 type CollisionSystem struct {
 	BaseSystem
-	score int
 }
 
 func NewCollisionSystem() *CollisionSystem {
@@ -21,7 +20,6 @@ func NewCollisionSystem() *CollisionSystem {
 				"Collider",
 			},
 		},
-		score: 0,
 	}
 }
 
@@ -98,8 +96,59 @@ func (cs *CollisionSystem) Update(deltaTime float64, entities []Entity, eventDis
 			if cs.checkCollision(lbTransform, lbCollider, packetTransform, packetCollider) {
 				// Packet caught by load balancer - route it instead of destroying
 				cs.routePacket(packet, loadBalancer, entities, eventDispatcher)
-				// Update score immediately for backward compatibility with tests
-				cs.score += 10
+
+				// Update Combo on the load balancer (component-based)
+				if comboComp := loadBalancer.GetCombo(); comboComp != nil {
+					if combo, ok := comboComp.(*components.Combo); ok {
+						combo.Increment()
+						combo.Timer = 0
+						// Optional: publish combo event for UI/score systems
+						if combo.Streak > 1 {
+							bonus := 0
+							// basic bonus mapping similar to previous logic
+							switch {
+							case combo.Streak >= 10:
+								bonus = 50
+							case combo.Streak >= 7:
+								bonus = 30
+							case combo.Streak >= 5:
+								bonus = 20
+							case combo.Streak >= 3:
+								bonus = 10
+							}
+							cc := combo.Streak
+							eventDispatcher.Publish(events.NewEvent(events.EventType("combo_achieved"), &events.EventData{ComboCount: &cc, BonusPoints: &bonus}))
+						}
+					}
+				}
+
+				// Update SLA counters on the load balancer (or any entity holding SLA)
+				if slaComp := loadBalancer.GetSLA(); slaComp != nil {
+					if sla, ok := slaComp.(*components.SLA); ok {
+						sla.IncrementCaught()
+						// Publish packet caught
+						score := sla.Caught * 10
+						eventDispatcher.Publish(events.NewEvent(events.EventPacketCaught, &events.EventData{Score: &score, Packet: packet}))
+
+						// Publish SLA updated for UI
+						current := 100.0
+						if sla.Total > 0 {
+							current = float64(sla.Caught) / float64(sla.Total) * 100.0
+							sla.SetCurrent(current)
+						}
+						remaining := sla.ErrorBudget - sla.Lost
+						if remaining < 0 {
+							remaining = 0
+						}
+						eventDispatcher.Publish(events.NewEvent(events.EventSLAUpdated, &events.EventData{
+							Current:   &current,
+							Caught:    &sla.Caught,
+							Lost:      &sla.Lost,
+							Remaining: &remaining,
+							Budget:    &sla.ErrorBudget,
+						}))
+					}
+				}
 			}
 		}
 
@@ -130,6 +179,39 @@ func (cs *CollisionSystem) Update(deltaTime float64, entities []Entity, eventDis
 						Powerup: &powerupName,
 						Packet:  powerUp,
 					}))
+
+					// Activate timer in PowerUpState component if present
+					for _, e := range entities {
+						if comp := e.GetComponentByName("PowerUpState"); comp != nil {
+							if pstate, ok := comp.(*components.PowerUpState); ok {
+								duration := 10.0
+								switch powerupName {
+								case "SpeedBoost":
+									duration = 15.0
+								case "DoublePoints":
+									duration = 20.0
+								case "SlowMotion":
+									duration = 12.0
+								}
+								if pstate.RemainingByName == nil {
+									pstate.RemainingByName = make(map[string]float64)
+								}
+								pstate.RemainingByName[powerupName] = duration
+							}
+						}
+					}
+
+					// Also add a particle effect into ParticleState if present
+					lbX, lbY := lbTransform.GetX()+7.5, lbTransform.GetY()+7.5
+					if sprite := powerUp.GetSprite(); sprite != nil {
+						for _, e := range entities {
+							if comp := e.GetComponentByName("ParticleState"); comp != nil {
+								if pstate, ok := comp.(*components.ParticleState); ok {
+									(&ParticleSystem{}).CreatePowerUpEffect(lbX, lbY, sprite.GetColor(), pstate)
+								}
+							}
+						}
+					}
 				}
 			}
 		}
@@ -146,12 +228,43 @@ func (cs *CollisionSystem) Update(deltaTime float64, entities []Entity, eventDis
 		if transform.GetY() > 600 {
 			// Packet missed
 			packet.(interface{ SetActive(bool) }).SetActive(false)
-			fmt.Printf("Packet missed! Score: %d\n", cs.score)
 
-			// Publish packet lost event
-			eventDispatcher.Publish(events.NewEvent(events.EventPacketLost, &events.EventData{
-				Score: &cs.score,
-			}))
+			// Update SLA counters on the load balancer (or any entity holding SLA)
+			if loadBalancer != nil {
+				if slaComp := loadBalancer.GetSLA(); slaComp != nil {
+					if sla, ok := slaComp.(*components.SLA); ok {
+						sla.IncrementLost()
+						score := sla.Caught * 10
+						eventDispatcher.Publish(events.NewEvent(events.EventPacketLost, &events.EventData{Score: &score}))
+
+						// Publish SLA updated for UI
+						current := 100.0
+						if sla.Total > 0 {
+							current = float64(sla.Caught) / float64(sla.Total) * 100.0
+							sla.SetCurrent(current)
+						}
+						remaining := sla.ErrorBudget - sla.Lost
+						if remaining < 0 {
+							remaining = 0
+						}
+						eventDispatcher.Publish(events.NewEvent(events.EventSLAUpdated, &events.EventData{
+							Current:   &current,
+							Caught:    &sla.Caught,
+							Lost:      &sla.Lost,
+							Remaining: &remaining,
+							Budget:    &sla.ErrorBudget,
+						}))
+
+						// If error budget exhausted, signal game over
+						if remaining <= 0 {
+							eventDispatcher.Publish(events.NewEvent(events.EventGameOver, &events.EventData{
+								Score: &score,
+								Lost:  &sla.Lost,
+							}))
+						}
+					}
+				}
+			}
 		}
 	}
 }
@@ -229,13 +342,25 @@ func (cs *CollisionSystem) routePacket(packet Entity, loadBalancer Entity, entit
 	// Update packet to route to backend
 	cs.updatePacketForRouting(packet, selectedBackend)
 
-	fmt.Printf("Packet routed to backend %d! Score: %d\n", backendIndex, cs.score)
+	// Create route visual via RouteState if available
+	if ptx := packetTransform.GetX(); true {
+		startX := ptx + 7.5
+		startY := packetTransform.GetY() + 7.5
+		if bt := selectedBackend.GetTransform(); bt != nil {
+			endX := bt.GetX() + 60.0
+			endY := bt.GetY() + 20.0
+			for _, e := range entities {
+				if comp := e.GetComponentByName("RouteState"); comp != nil {
+					if rstate, ok := comp.(*components.RouteState); ok {
+						color := packet.GetSprite().GetColor()
+						(&RoutingSystem{}).CreateRoute(startX, startY, endX, endY, color, rstate)
+					}
+				}
+			}
+		}
+	}
 
-	// Publish packet caught event (for routing visualization)
-	eventDispatcher.Publish(events.NewEvent(events.EventPacketCaught, &events.EventData{
-		Score:  &cs.score,
-		Packet: packet,
-	}))
+	fmt.Printf("Packet routed to backend %d!\n", backendIndex)
 }
 
 // updatePacketForRouting updates the packet to move toward the backend

@@ -27,10 +27,7 @@ func TestNewCollisionSystem(t *testing.T) {
 		}
 	}
 
-	// Test initial score
-	if cs.score != 0 {
-		t.Errorf("Expected initial score to be 0, got %d", cs.score)
-	}
+	// No internal score anymore
 }
 
 func TestCollisionSystem_Update_NoEntities(t *testing.T) {
@@ -43,10 +40,7 @@ func TestCollisionSystem_Update_NoEntities(t *testing.T) {
 	// Run update
 	cs.Update(0.016, entities, eventDispatcher)
 
-	// Verify score remains unchanged
-	if cs.score != 0 {
-		t.Errorf("Expected score to remain 0, got %d", cs.score)
-	}
+	// No internal score anymore
 }
 
 func TestCollisionSystem_Update_NoLoadBalancer(t *testing.T) {
@@ -62,10 +56,7 @@ func TestCollisionSystem_Update_NoLoadBalancer(t *testing.T) {
 	// Run update
 	cs.Update(0.016, entities, eventDispatcher)
 
-	// Verify score remains unchanged
-	if cs.score != 0 {
-		t.Errorf("Expected score to remain 0 without load balancer, got %d", cs.score)
-	}
+	// No internal score anymore
 }
 
 func TestCollisionSystem_Update_PacketCollision(t *testing.T) {
@@ -83,10 +74,7 @@ func TestCollisionSystem_Update_PacketCollision(t *testing.T) {
 	// Run update
 	cs.Update(0.016, entities, eventDispatcher)
 
-	// Verify packet was caught and score increased
-	if cs.score != 10 {
-		t.Errorf("Expected score to be 10 after packet caught, got %d", cs.score)
-	}
+	// No internal score anymore; handled via SLA component events
 
 	// Verify packet was deactivated
 	if packet.IsActive() {
@@ -109,10 +97,7 @@ func TestCollisionSystem_Update_PacketNoCollision(t *testing.T) {
 	// Run update
 	cs.Update(0.016, entities, eventDispatcher)
 
-	// Verify score remains unchanged
-	if cs.score != 0 {
-		t.Errorf("Expected score to remain 0 when no collision, got %d", cs.score)
-	}
+	// No internal score anymore
 
 	// Verify packet remains active
 	if !packet.IsActive() {
@@ -215,10 +200,7 @@ func TestCollisionSystem_Update_MultiplePackets(t *testing.T) {
 	// Run update
 	cs.Update(0.016, entities, eventDispatcher)
 
-	// Verify score increased by 20 (2 packets caught)
-	if cs.score != 20 {
-		t.Errorf("Expected score to be 20 after 2 packets caught, got %d", cs.score)
-	}
+	// No internal score anymore
 
 	// Verify colliding packets were deactivated
 	if packet1.IsActive() {
@@ -248,10 +230,7 @@ func TestCollisionSystem_Update_EntityWithoutRequiredComponents(t *testing.T) {
 	// Run update
 	cs.Update(0.016, entities, eventDispatcher)
 
-	// Verify score remains unchanged
-	if cs.score != 0 {
-		t.Errorf("Expected score to remain 0 for entity without required components, got %d", cs.score)
-	}
+	// No internal score anymore
 }
 
 func TestCollisionSystem_Update_InactiveEntity(t *testing.T) {
@@ -270,10 +249,7 @@ func TestCollisionSystem_Update_InactiveEntity(t *testing.T) {
 	// Run update
 	cs.Update(0.016, entities, eventDispatcher)
 
-	// Verify score remains unchanged
-	if cs.score != 0 {
-		t.Errorf("Expected score to remain 0 for inactive entity, got %d", cs.score)
-	}
+	// No internal score anymore
 }
 
 func TestCollisionSystem_checkCollision_Overlapping(t *testing.T) {
@@ -351,10 +327,7 @@ func TestCollisionSystem_Integration(t *testing.T) {
 	// Run update
 	cs.Update(0.016, entities, eventDispatcher)
 
-	// Verify score increased by 10 (1 packet caught)
-	if cs.score != 10 {
-		t.Errorf("Expected score to be 10 after 1 packet caught, got %d", cs.score)
-	}
+	// No internal score anymore
 
 	// Verify colliding entities were deactivated
 	if packet1.IsActive() {

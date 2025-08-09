@@ -30,7 +30,7 @@ func (sf *SystemFactory) CreateSystemManager() (*SystemManager, error) {
 	collisionSys := NewCollisionSystem()
 	powerUpSys := NewPowerUpSystem()
 	backendSys := NewBackendSystem()
-	slaSys := NewSLASystem(spawnSys)
+	slaSys := NewSLASystem()
 	comboSys := NewComboSystem()
 	gameStateSys := NewGameStateSystem()
 	particleSys := NewParticleSystem()

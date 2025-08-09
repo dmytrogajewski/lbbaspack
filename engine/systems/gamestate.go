@@ -10,11 +10,6 @@ const SystemTypeGameState SystemType = "gamestate"
 
 type GameStateSystem struct {
 	BaseSystem
-	currentState    components.StateType
-	gameTime        float64
-	score           int
-	level           int
-	lastLevelUpTime float64 // Track when we last leveled up to prevent multiple level-ups
 }
 
 func NewGameStateSystem() *GameStateSystem {
@@ -22,13 +17,9 @@ func NewGameStateSystem() *GameStateSystem {
 		BaseSystem: BaseSystem{
 			RequiredComponents: []string{
 				"State",
+				"GameSession",
 			},
 		},
-		currentState:    components.StateMenu,
-		gameTime:        0.0,
-		score:           0,
-		level:           1,
-		lastLevelUpTime: 0.0,
 	}
 }
 
@@ -47,29 +38,62 @@ func (gss *GameStateSystem) GetSystemInfo() *SystemInfo {
 }
 
 func (gss *GameStateSystem) Update(deltaTime float64, entities []Entity, eventDispatcher *events.EventDispatcher) {
-	gss.gameTime += deltaTime
-
-	// Update all entities with state components
-	for _, entity := range gss.FilterEntities(entities) {
-		stateComp := entity.GetState()
-		if stateComp == nil {
-			continue
+	// Read session component
+	var session *components.GameSession
+	for _, e := range entities {
+		if comp := e.GetComponentByName("GameSession"); comp != nil {
+			if s, ok := comp.(*components.GameSession); ok {
+				session = s
+				break
+			}
 		}
-		state := stateComp
-		state.SetState(gss.getStateString())
+	}
+	if session == nil {
+		return
 	}
 
-	// Handle state-specific logic
-	switch gss.currentState {
+	session.GameTime += deltaTime
+
+	// Determine current state from State component(s)
+	currentState := components.StateMenu
+	for _, e := range gss.FilterEntities(entities) {
+		if st := e.GetState(); st != nil {
+			switch st.GetState() {
+			case "playing":
+				currentState = components.StatePlaying
+			case "gameover":
+				currentState = components.StateGameOver
+			}
+			break
+		}
+	}
+
+	// Normalize state string back to components (optional)
+	for _, entity := range gss.FilterEntities(entities) {
+		if st := entity.GetState(); st != nil {
+			switch currentState {
+			case components.StateMenu:
+				st.SetState("menu")
+			case components.StatePlaying:
+				st.SetState("playing")
+			case components.StateGameOver:
+				st.SetState("gameover")
+			}
+		}
+	}
+
+	switch currentState {
 	case components.StatePlaying:
-		gss.updatePlayingState(deltaTime, eventDispatcher)
+		gss.updatePlayingState(deltaTime, eventDispatcher, session)
 	case components.StateGameOver:
-		gss.updateGameOverState(deltaTime, eventDispatcher)
+		gss.updateGameOverState(deltaTime, eventDispatcher, session)
 	}
 }
 
 func (gss *GameStateSystem) getStateString() string {
-	switch gss.currentState {
+	// This helper is now used only to normalize state strings when writing to State components
+	// We don't track state internally; default to menu
+	switch components.StateMenu {
 	case components.StateMenu:
 		return "menu"
 	case components.StatePlaying:
@@ -84,83 +108,43 @@ func (gss *GameStateSystem) getStateString() string {
 func (gss *GameStateSystem) Initialize(eventDispatcher *events.EventDispatcher) {
 	// Handle state transitions based on events
 	eventDispatcher.Subscribe(events.EventGameStart, func(event *events.Event) {
-		gss.transitionToPlaying()
+		// no internal state to change
 	})
 
-	eventDispatcher.Subscribe(events.EventGameOver, func(event *events.Event) {
-		gss.transitionToGameOver()
-	})
+	eventDispatcher.Subscribe(events.EventGameOver, func(event *events.Event) {})
 
-	eventDispatcher.Subscribe(events.EventPacketCaught, func(event *events.Event) {
-		if gss.currentState == components.StatePlaying {
-			gss.score += 10
-			gss.checkLevelUp(eventDispatcher)
-		}
-	})
+	eventDispatcher.Subscribe(events.EventPacketCaught, func(event *events.Event) {})
 }
 
-func (gss *GameStateSystem) transitionToPlaying() {
-	if gss.currentState == components.StateMenu || gss.currentState == components.StateGameOver {
-		gss.currentState = components.StatePlaying
-		gss.gameTime = 0.0
-		gss.score = 0
-		gss.level = 1
-		fmt.Println("Game started! Good luck!")
+// No internal transitions; state is kept in components and events
+
+// No internal transitions; handled by components/UI
+
+func (gss *GameStateSystem) updatePlayingState(deltaTime float64, eventDispatcher *events.EventDispatcher, session *components.GameSession) {
+	if int(session.GameTime)%30 == 0 && int(session.GameTime) > 0 && session.GameTime-session.LastLevelUpTime > 1.0 {
+		gss.levelUp(eventDispatcher, session)
 	}
 }
 
-func (gss *GameStateSystem) transitionToGameOver() {
-	if gss.currentState == components.StatePlaying {
-		gss.currentState = components.StateGameOver
-		fmt.Printf("Game Over! Final Score: %d, Level: %d, Time: %.1fs\n",
-			gss.score, gss.level, gss.gameTime)
-	}
-}
-
-func (gss *GameStateSystem) updatePlayingState(deltaTime float64, eventDispatcher *events.EventDispatcher) {
-	// Check for level progression every 30 seconds (time-based)
-	if int(gss.gameTime)%30 == 0 && int(gss.gameTime) > 0 && gss.gameTime-gss.lastLevelUpTime > 1.0 {
-		gss.levelUp(eventDispatcher)
-	}
-}
-
-func (gss *GameStateSystem) updateGameOverState(deltaTime float64, eventDispatcher *events.EventDispatcher) {
+func (gss *GameStateSystem) updateGameOverState(deltaTime float64, eventDispatcher *events.EventDispatcher, session *components.GameSession) {
 	// Handle restart logic or return to menu
 	// This could be expanded with restart functionality
 }
 
-func (gss *GameStateSystem) checkLevelUp(eventDispatcher *events.EventDispatcher) {
-	// Level up every 100 points (score-based)
-	if gss.score%100 == 0 && gss.score > 0 && gss.gameTime-gss.lastLevelUpTime > 1.0 {
-		gss.levelUp(eventDispatcher)
+func (gss *GameStateSystem) checkLevelUp(eventDispatcher *events.EventDispatcher, session *components.GameSession) {
+	if session.Score%100 == 0 && session.Score > 0 && session.GameTime-session.LastLevelUpTime > 1.0 {
+		gss.levelUp(eventDispatcher, session)
 	}
 }
 
 // levelUp handles the actual level-up logic
-func (gss *GameStateSystem) levelUp(eventDispatcher *events.EventDispatcher) {
-	gss.level++
-	gss.lastLevelUpTime = gss.gameTime
-	fmt.Printf("Level up! Now level %d (Score: %d, Time: %.1fs)\n", gss.level, gss.score, gss.gameTime)
-
-	levelEvent := events.NewEvent(events.EventLevelUp, &events.EventData{
-		Level: &gss.level,
-		Time:  &gss.gameTime,
-	})
-	eventDispatcher.Publish(levelEvent)
+func (gss *GameStateSystem) levelUp(eventDispatcher *events.EventDispatcher, session *components.GameSession) {
+	session.Level++
+	session.LastLevelUpTime = session.GameTime
+	fmt.Printf("Level up! Now level %d (Score: %d, Time: %.1fs)\n", session.Level, session.Score, session.GameTime)
+	level := session.Level
+	time := session.GameTime
+	eventDispatcher.Publish(events.NewEvent(events.EventLevelUp, &events.EventData{Level: &level, Time: &time}))
 }
 
-func (gss *GameStateSystem) GetCurrentState() components.StateType {
-	return gss.currentState
-}
-
-func (gss *GameStateSystem) GetScore() int {
-	return gss.score
-}
-
-func (gss *GameStateSystem) GetLevel() int {
-	return gss.level
-}
-
-func (gss *GameStateSystem) GetGameTime() float64 {
-	return gss.gameTime
-}
+// Accessors removed; data is in components

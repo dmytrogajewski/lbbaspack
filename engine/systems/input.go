@@ -11,10 +11,6 @@ const SystemTypeInput SystemType = "input"
 
 type InputSystem struct {
 	BaseSystem
-	lastMouseX        float64
-	lastMouseY        float64
-	activeInputMethod string // "keyboard" or "mouse"
-	keyboardLastUsed  bool   // Track if keyboard was used in the last frame
 }
 
 func NewInputSystem() *InputSystem {
@@ -25,10 +21,6 @@ func NewInputSystem() *InputSystem {
 				"State",
 			},
 		},
-		lastMouseX:        0,
-		lastMouseY:        0,
-		activeInputMethod: "mouse", // Start with mouse as default
-		keyboardLastUsed:  false,
 	}
 }
 
@@ -78,42 +70,11 @@ func (is *InputSystem) handleKeyboardInput(eventDispatcher *events.EventDispatch
 }
 
 func (is *InputSystem) handleLoadBalancerInput(transform components.TransformComponent, eventDispatcher *events.EventDispatcher, deltaTime float64) {
-	// Check for keyboard input
+	// Apply both inputs with keyboard taking precedence if moved this frame
 	keyboardMoved := is.handleKeyboardMovement(transform, deltaTime)
-
-	// Check for mouse input (but don't apply it yet)
-	mouseX, _ := ebiten.CursorPosition()
-	mouseMoved := mouseX != int(is.lastMouseX)
-
-	// Update input method tracking
-	if keyboardMoved {
-		// Keyboard was used - switch to keyboard mode
-		is.activeInputMethod = "keyboard"
-		is.keyboardLastUsed = true
-	} else if mouseMoved && is.activeInputMethod == "mouse" {
-		// Mouse was moved and we're already in mouse mode - stay in mouse mode
-		is.keyboardLastUsed = false
-	} else if mouseMoved && is.activeInputMethod == "keyboard" && !is.keyboardLastUsed {
-		// Mouse was moved and we're in keyboard mode but keyboard hasn't been used recently
-		// Switch to mouse mode
-		is.activeInputMethod = "mouse"
-		is.keyboardLastUsed = false
-	} else if !keyboardMoved && !mouseMoved {
-		// No input detected - maintain current mode
-		is.keyboardLastUsed = false
-	}
-
-	// Apply input based on active method
-	if is.activeInputMethod == "keyboard" {
-		// In keyboard mode - only apply keyboard input
-		// (keyboard input was already applied in handleKeyboardMovement)
-	} else {
-		// In mouse mode - apply mouse input
+	if !keyboardMoved {
 		is.handleMouseInput(transform, eventDispatcher)
 	}
-
-	// Update last mouse position
-	is.lastMouseX = float64(mouseX)
 }
 
 func (is *InputSystem) handleKeyboardMovement(transform components.TransformComponent, deltaTime float64) bool {
@@ -140,6 +101,11 @@ func (is *InputSystem) handleKeyboardMovement(transform components.TransformComp
 }
 
 func (is *InputSystem) handleMouseInput(transform components.TransformComponent, eventDispatcher *events.EventDispatcher) {
+	// Only apply mouse movement while left button is pressed
+	if !ebiten.IsMouseButtonPressed(ebiten.MouseButtonLeft) {
+		return
+	}
+
 	// Get mouse position
 	mouseX, _ := ebiten.CursorPosition()
 
