@@ -8,7 +8,7 @@ import (
 )
 
 func TestNewSLASystem(t *testing.T) {
-	ss := NewSLASystem(NewSpawnSystem(func() Entity { return entities.NewEntity(1) }))
+	ss := NewSLASystem()
 	if ss == nil {
 		t.Fatal("NewSLASystem returned nil")
 	}
@@ -24,7 +24,7 @@ func TestNewSLASystem(t *testing.T) {
 }
 
 func TestSLASystem_Update_ComputesFromComponent(t *testing.T) {
-	ss := NewSLASystem(NewSpawnSystem(func() Entity { return entities.NewEntity(1) }))
+	ss := NewSLASystem()
 	ed := events.NewEventDispatcher()
 	e := entities.NewEntity(1)
 	sla := components.NewSLA(95.0, 10)
@@ -42,6 +42,6 @@ func TestSLASystem_Update_ComputesFromComponent(t *testing.T) {
 }
 
 func TestSLASystem_Initialize_NoPanic(t *testing.T) {
-	ss := NewSLASystem(NewSpawnSystem(func() Entity { return entities.NewEntity(1) }))
+	ss := NewSLASystem()
 	ss.Initialize(events.NewEventDispatcher())
 }

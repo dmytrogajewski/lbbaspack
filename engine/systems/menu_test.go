@@ -356,7 +356,7 @@ func TestMenuSystem_Draw(t *testing.T) {
 	}()
 
 	// Call Draw method
-	ms.Draw(screen)
+	ms.Draw(screen, []Entity{})
 
 	// If we get here, Draw executed without panicking
 }
@@ -374,7 +374,7 @@ func TestMenuSystem_Draw_DifferentSelectedModes(t *testing.T) {
 			}
 		}()
 
-		ms.Draw(screen)
+		ms.Draw(screen, []Entity{})
 	}
 }
 
@@ -392,7 +392,7 @@ func TestMenuSystem_Draw_NilScreen(t *testing.T) {
 		}
 	}()
 
-	ms.Draw(nil)
+	ms.Draw(nil, []Entity{})
 
 	// If we get here without panic, that's unexpected
 	t.Error("Expected panic with nil screen, but no panic occurred")
@@ -420,7 +420,7 @@ func TestMenuSystem_Integration(t *testing.T) {
 	// stateless, nothing to assert
 
 	// Test drawing
-	ms.Draw(screen)
+	ms.Draw(screen, []Entity{})
 
 	// Test starting game
 	ms.startGame(eventDispatcher, 0)
