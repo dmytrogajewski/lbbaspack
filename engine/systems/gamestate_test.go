@@ -127,16 +127,6 @@ func TestGameStateSystem_Update_GameOverState(t *testing.T) {
 	}
 }
 
-func TestGameStateSystem_getStateString(t *testing.T) {
-	gss := NewGameStateSystem()
-
-	// Test the helper function
-	result := gss.getStateString()
-	if result != "menu" {
-		t.Errorf("Expected getStateString to return 'menu', got %s", result)
-	}
-}
-
 func TestGameStateSystem_Initialize(t *testing.T) {
 	gss := NewGameStateSystem()
 	eventDispatcher := events.NewEventDispatcher()

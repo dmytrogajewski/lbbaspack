@@ -490,18 +490,3 @@ func TestParticleSystem_Integration(t *testing.T) {
 	// Verify no errors occurred
 	// The system should remain stable across multiple updates
 }
-
-// Helper functions to create test entities
-func createTestPacketEntity(id uint64, x, y float64, color color.RGBA) Entity {
-	entity := entities.NewEntity(id)
-	particleState := components.NewParticleState()
-	entity.AddComponent(particleState)
-	return entity
-}
-
-func createTestPowerUpEntity(id uint64, x, y float64, color color.RGBA) Entity {
-	entity := entities.NewEntity(id)
-	particleState := components.NewParticleState()
-	entity.AddComponent(particleState)
-	return entity
-}

@@ -91,26 +91,6 @@ func TestPowerUpSystem_Initialize(t *testing.T) {
 	NewPowerUpSystem().Initialize(events.NewEventDispatcher())
 }
 
-func TestPowerUpSystem_activatePowerUp_SpeedBoost(t *testing.T) {
-	NewPowerUpSystem().activatePowerUp("SpeedBoost", events.NewEventDispatcher())
-}
-
-func TestPowerUpSystem_activatePowerUp_DoublePoints(t *testing.T) {
-	NewPowerUpSystem().activatePowerUp("DoublePoints", events.NewEventDispatcher())
-}
-
-func TestPowerUpSystem_activatePowerUp_SlowMotion(t *testing.T) {
-	NewPowerUpSystem().activatePowerUp("SlowMotion", events.NewEventDispatcher())
-}
-
-func TestPowerUpSystem_activatePowerUp_UnknownPowerUp(t *testing.T) {
-	NewPowerUpSystem().activatePowerUp("UnknownPowerUp", events.NewEventDispatcher())
-}
-
-func TestPowerUpSystem_activatePowerUp_Reactivation(t *testing.T) {
-	NewPowerUpSystem().activatePowerUp("SpeedBoost", events.NewEventDispatcher())
-}
-
 func TestPowerUpSystem_IsPowerUpActive(t *testing.T) {}
 
 func TestPowerUpSystem_GetActivePowerUps(t *testing.T) {}

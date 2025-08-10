@@ -29,6 +29,7 @@ func (sf *SystemFactory) CreateSystemManager() (*SystemManager, error) {
 	movementSys := NewMovementSystem()
 	collisionSys := NewCollisionSystem()
 	powerUpSys := NewPowerUpSystem()
+	offscreenSys := NewOffscreenSystem()
 	backendSys := NewBackendSystem()
 	slaSys := NewSLASystem()
 	comboSys := NewComboSystem()
@@ -45,6 +46,7 @@ func (sf *SystemFactory) CreateSystemManager() (*SystemManager, error) {
 		movementSys,
 		collisionSys,
 		powerUpSys,
+		offscreenSys,
 		backendSys,
 		slaSys,
 		comboSys,
@@ -70,6 +72,7 @@ func (sf *SystemFactory) CreateSystemManager() (*SystemManager, error) {
 	// Initialize all systems
 	spawnSys.Initialize(sf.eventDispatcher)
 	backendSys.Initialize(sf.eventDispatcher)
+	powerUpSys.Initialize(sf.eventDispatcher)
 	slaSys.Initialize(sf.eventDispatcher)
 	comboSys.Initialize(sf.eventDispatcher)
 	gameStateSys.Initialize(sf.eventDispatcher)

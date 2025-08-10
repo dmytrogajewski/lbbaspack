@@ -62,5 +62,12 @@ func (cs *ComboSystem) Update(deltaTime float64, entities []Entity, eventDispatc
 }
 
 func (cs *ComboSystem) Initialize(eventDispatcher *events.EventDispatcher) {
-	// Stateless: no internal state; combo increments are handled by collision when a packet is caught
+	eventDispatcher.Subscribe(events.EventCollisionDetected, func(event *events.Event) {
+		if event == nil || event.Data == nil || event.Data.Packet == nil {
+			return
+		}
+		// Increment combo on the entity that has Combo (e.g., load balancer)
+		// We don't have direct reference here; Combo will be refreshed in Update via other triggers
+	})
+	eventDispatcher.Subscribe(events.EventPacketDelivered, func(event *events.Event) {})
 }

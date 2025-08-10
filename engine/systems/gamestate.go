@@ -90,20 +90,7 @@ func (gss *GameStateSystem) Update(deltaTime float64, entities []Entity, eventDi
 	}
 }
 
-func (gss *GameStateSystem) getStateString() string {
-	// This helper is now used only to normalize state strings when writing to State components
-	// We don't track state internally; default to menu
-	switch components.StateMenu {
-	case components.StateMenu:
-		return "menu"
-	case components.StatePlaying:
-		return "playing"
-	case components.StateGameOver:
-		return "gameover"
-	default:
-		return "unknown"
-	}
-}
+// Test-only legacy helpers are defined in legacy_test_shims_test.go
 
 func (gss *GameStateSystem) Initialize(eventDispatcher *events.EventDispatcher) {
 	// Handle state transitions based on events
@@ -131,11 +118,7 @@ func (gss *GameStateSystem) updateGameOverState(deltaTime float64, eventDispatch
 	// This could be expanded with restart functionality
 }
 
-func (gss *GameStateSystem) checkLevelUp(eventDispatcher *events.EventDispatcher, session *components.GameSession) {
-	if session.Score%100 == 0 && session.Score > 0 && session.GameTime-session.LastLevelUpTime > 1.0 {
-		gss.levelUp(eventDispatcher, session)
-	}
-}
+// Test-only legacy helpers are defined in legacy_test_shims_test.go
 
 // levelUp handles the actual level-up logic
 func (gss *GameStateSystem) levelUp(eventDispatcher *events.EventDispatcher, session *components.GameSession) {

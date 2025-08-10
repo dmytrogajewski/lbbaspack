@@ -27,7 +27,7 @@ func NewSpawner() *Spawner {
 		IsDDoSActive:        false,
 		DDOSTimer:           0,
 		DDoSDuration:        5.0,
-		DDoSMult:            10.0,
+		DDoSMult:            3.0,
 		DDoSCooldown:        10.0,
 	}
 }

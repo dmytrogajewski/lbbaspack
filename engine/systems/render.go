@@ -74,11 +74,7 @@ func (rs *RenderSystem) UpdateWithScreen(deltaTime float64, entities []Entity, e
 							}
 						} else if colliderComp.GetTag() == "loadbalancer" {
 							label = "LBaaS"
-						} else if colliderComp.GetTag() == "backend" {
-							// Backend labels are handled by the BackendAssignment component
 						}
-					} else {
-						// no collider
 					}
 					if powerUpComp := entity.GetPowerUpType(); powerUpComp != nil {
 						label = powerUpComp.GetName()

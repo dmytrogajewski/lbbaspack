@@ -5,9 +5,12 @@ import "image/color"
 // ParticleState stores particles for visual effects
 type ParticleState struct {
 	Particles []*Particle
+	Requests  []*ParticleEffectRequest
 }
 
-func NewParticleState() *ParticleState { return &ParticleState{Particles: make([]*Particle, 0)} }
+func NewParticleState() *ParticleState {
+	return &ParticleState{Particles: make([]*Particle, 0), Requests: make([]*ParticleEffectRequest, 0)}
+}
 
 func (p *ParticleState) GetType() string { return "ParticleState" }
 

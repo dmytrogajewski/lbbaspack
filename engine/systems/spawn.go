@@ -52,9 +52,7 @@ func (ss *SpawnSystem) IncreaseLevel(newLevel int) {
 // Initialize sets up event listeners for the spawn system.
 func (ss *SpawnSystem) Initialize(eventDispatcher *events.EventDispatcher) {
 	eventDispatcher.Subscribe(events.EventLevelUp, func(event *events.Event) {
-		if event.Data.Level != nil {
-			// handled in Update via Spawner component
-		}
+		// Level up events are handled in Update via Spawner component
 	})
 }
 
@@ -99,8 +97,15 @@ func (ss *SpawnSystem) Update(deltaTime float64, entities []Entity, eventDispatc
 	spawner.PacketSpawnElapsed += deltaTime
 	spawner.PowerUpSpawnElapsed += deltaTime
 
-	// Spawn packet
-	if spawner.PacketSpawnElapsed >= spawner.PacketSpawnRate {
+	// Spawn packet (more frequent during DDoS)
+	effectivePacketSpawnRate := spawner.PacketSpawnRate
+	if spawner.IsDDoSActive && spawner.DDoSMult > 1 {
+		effectivePacketSpawnRate = spawner.PacketSpawnRate / (spawner.DDoSMult * 1.5)
+		if effectivePacketSpawnRate < 0.05 {
+			effectivePacketSpawnRate = 0.05
+		}
+	}
+	if spawner.PacketSpawnElapsed >= effectivePacketSpawnRate {
 		spawner.PacketSpawnElapsed = 0
 		ss.spawnPacketWithConfig(spawner)
 	}
@@ -111,26 +116,6 @@ func (ss *SpawnSystem) Update(deltaTime float64, entities []Entity, eventDispatc
 		ss.spawnPowerUp()
 	}
 }
-
-// updateDDoSAttack manages DDoS attack state and timing.
-// Removed stateful helpers; logic is inline in Update using Spawner component
-
-// endDDoSAttack terminates the current DDoS attack and restores normal spawn rates.
-// Removed; handled inline
-
-// tryStartDDoSAttack attempts to start a DDoS attack with a random chance.
-// Removed; handled inline
-
-// startDDoSAttack initiates a DDoS attack and publishes the start event.
-// Removed; handled inline
-
-// updateTimers increments the spawn timers by the given delta time.
-// Removed; handled inline
-
-// trySpawnPacket attempts to spawn a packet if enough time has passed.
-// Removed; handled inline
-
-// spawnPacket removed: use spawnPacketWithConfig
 
 func (ss *SpawnSystem) spawnPacketWithConfig(spawner *components.Spawner) {
 	if ss.spawnCallback == nil {
@@ -150,7 +135,12 @@ func (ss *SpawnSystem) spawnPacketWithConfig(spawner *components.Spawner) {
 	entity.AddComponent(components.NewSprite(15, 15, components.RandomPacketColor()))
 	entity.AddComponent(components.NewCollider(15, 15, "packet"))
 	physics := components.NewPhysics()
-	physics.SetVelocity(0, spawner.PacketSpeed)
+	speed := spawner.PacketSpeed
+	// During DDoS, packets fall a bit slower than normal
+	if spawner.IsDDoSActive && spawner.DDoSMult > 1 {
+		speed = spawner.PacketSpeed * 0.7
+	}
+	physics.SetVelocity(0, speed)
 	entity.AddComponent(physics)
 	entity.AddComponent(components.NewPacketType(components.RandomPacketName(), 10))
 }
@@ -176,8 +166,7 @@ func (ss *SpawnSystem) logComponentInfo(entity interface{ GetComponentNames() []
 	fmt.Printf("[SpawnSystem] %s has Transform: %v, Sprite: %v\n", entityType, hasTransform, hasSprite)
 }
 
-// trySpawnPowerUp attempts to spawn a power-up if enough time has passed.
-func (ss *SpawnSystem) trySpawnPowerUp(eventDispatcher *events.EventDispatcher) {}
+// Test-only legacy helpers are defined in legacy_test_shims_test.go
 
 // spawnPowerUp creates a new power-up entity with all required components.
 func (ss *SpawnSystem) spawnPowerUp() {

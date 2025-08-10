@@ -42,6 +42,7 @@ func NewGame() *Game {
 	loadBalancer.AddComponent(&components.State{Current: components.StateMenu}) // Start in menu state
 	loadBalancer.AddComponent(&components.Combo{})                              // Add combo component
 	loadBalancer.AddComponent(components.NewSLA(99.5, 10))                      // Add SLA component to load balancer
+	loadBalancer.AddComponent(components.NewPowerUpState())                     // Hold power-up timers on LB for event consumers
 
 	// World-level spawner and session config entities
 	spawnerEntity := world.NewEntity()
@@ -67,7 +68,7 @@ func NewGame() *Game {
 		backend.AddComponent(components.NewSprite(float64(backendWidth), 40, color.RGBA{0, 255, 0, 255}))
 		backend.AddComponent(components.NewCollider(float64(backendWidth), 40, "backend")) // Add collider for labels
 		backend.AddComponent(components.NewBackendAssignment(i))                           // Add backend assignment
-		backend.AddComponent(components.NewSLA(99.5, 10))                                  // Add SLA component
+		// Backends should not have SLA to avoid ambiguity; SLA tracked on load balancer
 	}
 
 	// --- System Initialization ---

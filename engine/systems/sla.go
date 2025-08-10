@@ -62,7 +62,86 @@ func (ss *SLASystem) Update(deltaTime float64, entities []Entity, eventDispatche
 	}
 }
 
-func (ss *SLASystem) Initialize(eventDispatcher *events.EventDispatcher) {}
+func (ss *SLASystem) Initialize(eventDispatcher *events.EventDispatcher) {
+	// Subscribe and update SLA counters directly on components
+	eventDispatcher.Subscribe(events.EventCollisionDetected, func(event *events.Event) {
+		if event == nil || event.Data == nil {
+			return
+		}
+		if event.Data.TagA == nil || event.Data.TagB == nil {
+			return
+		}
+		aIsLB := *event.Data.TagA == "loadbalancer"
+		bIsLB := *event.Data.TagB == "loadbalancer"
+		aIsPacket := *event.Data.TagA == "packet"
+		bIsPacket := *event.Data.TagB == "packet"
+		if (aIsLB && bIsPacket) || (bIsLB && aIsPacket) {
+			var target Entity
+			if aIsLB {
+				if e, ok := event.Data.EntityA.(Entity); ok {
+					target = e
+				}
+			} else if bIsLB {
+				if e, ok := event.Data.EntityB.(Entity); ok {
+					target = e
+				}
+			}
+			if target != nil {
+				if sc := target.GetSLA(); sc != nil {
+					if sla, ok := sc.(*components.SLA); ok {
+						sla.IncrementCaught()
+						current := 100.0
+						if sla.Total > 0 {
+							current = float64(sla.Caught) / float64(sla.Total) * 100.0
+							sla.SetCurrent(current)
+						}
+						remaining := sla.ErrorBudget - sla.Lost
+						if remaining < 0 {
+							remaining = 0
+						}
+						eventDispatcher.Publish(events.NewEvent(events.EventSLAUpdated, &events.EventData{Current: &current, Caught: &sla.Caught, Lost: &sla.Lost, Remaining: &remaining, Budget: &sla.ErrorBudget}))
+					}
+				}
+			}
+		}
+	})
+	eventDispatcher.Subscribe(events.EventColliderOffscreen, func(event *events.Event) {
+		if event == nil || event.Data == nil || event.Data.TagB == nil {
+			return
+		}
+		if *event.Data.TagB != "packet" {
+			return
+		}
+		// increment lost on any entity that has SLA (prefer one present in event)
+		for _, ent := range []interface{}{event.Data.EntityA, event.Data.EntityB} {
+			if e, ok := ent.(Entity); ok && e != nil {
+				if sc := e.GetSLA(); sc != nil {
+					if sla, ok := sc.(*components.SLA); ok {
+						sla.IncrementLost()
+						current := 100.0
+						if sla.Total > 0 {
+							current = float64(sla.Caught) / float64(sla.Total) * 100.0
+							sla.SetCurrent(current)
+						}
+						remaining := sla.ErrorBudget - sla.Lost
+						if remaining < 0 {
+							remaining = 0
+						}
+						eventDispatcher.Publish(events.NewEvent(events.EventSLAUpdated, &events.EventData{Current: &current, Caught: &sla.Caught, Lost: &sla.Lost, Remaining: &remaining, Budget: &sla.ErrorBudget}))
+						if remaining <= 0 {
+							eventDispatcher.Publish(events.NewEvent(events.EventGameOver, &events.EventData{Score: &sla.Caught, Lost: &sla.Lost}))
+						}
+						break
+					}
+				}
+			}
+		}
+	})
+}
+
+// React to offscreen events in Update by scanning SLA components; keep Initialize empty to remain stateless
+
+// SLA counters now updated by reacting to events in Update only
 
 // updateSLA removed; SLA events should be published by systems that mutate SLA components if needed
 

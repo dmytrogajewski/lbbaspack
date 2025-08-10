@@ -45,6 +45,25 @@ func (is *InputSystem) Update(deltaTime float64, entities []Entity, eventDispatc
 	// Handle input for load balancer movement
 	filteredEntities := is.FilterEntities(entities)
 
+	// Read active power-ups (Speed Boost) from any holder entity
+	moveSpeed := 300.0
+	for _, e := range entities {
+		if comp := e.GetComponentByName("PowerUpState"); comp != nil {
+			if ps, ok := comp.(*components.PowerUpState); ok {
+				if ps.RemainingByName != nil {
+					if rem, ok := ps.RemainingByName["Speed Boost"]; ok && rem > 0 {
+						moveSpeed = 450.0
+						break
+					}
+					if rem, ok := ps.RemainingByName["SpeedBoost"]; ok && rem > 0 {
+						moveSpeed = 450.0
+						break
+					}
+				}
+			}
+		}
+	}
+
 	for _, entity := range filteredEntities {
 		transformComp := entity.GetTransform()
 		stateComp := entity.GetState()
@@ -57,7 +76,7 @@ func (is *InputSystem) Update(deltaTime float64, entities []Entity, eventDispatc
 
 		// Only process input if game is in playing state
 		if state.GetState() == "playing" {
-			is.handleLoadBalancerInput(transform, eventDispatcher, deltaTime)
+			is.handleLoadBalancerInputWithSpeed(transform, eventDispatcher, deltaTime, moveSpeed)
 		}
 	}
 }
@@ -69,16 +88,26 @@ func (is *InputSystem) handleKeyboardInput(eventDispatcher *events.EventDispatch
 	}
 }
 
+// Legacy signature kept for tests; uses default moveSpeed
 func (is *InputSystem) handleLoadBalancerInput(transform components.TransformComponent, eventDispatcher *events.EventDispatcher, deltaTime float64) {
+	is.handleLoadBalancerInputWithSpeed(transform, eventDispatcher, deltaTime, 300.0)
+}
+
+func (is *InputSystem) handleLoadBalancerInputWithSpeed(transform components.TransformComponent, eventDispatcher *events.EventDispatcher, deltaTime float64, moveSpeed float64) {
 	// Apply both inputs with keyboard taking precedence if moved this frame
-	keyboardMoved := is.handleKeyboardMovement(transform, deltaTime)
+	keyboardMoved := is.handleKeyboardMovementWithSpeed(transform, deltaTime, moveSpeed)
 	if !keyboardMoved {
 		is.handleMouseInput(transform, eventDispatcher)
 	}
 }
 
+// Legacy signature kept for tests; uses default moveSpeed
 func (is *InputSystem) handleKeyboardMovement(transform components.TransformComponent, deltaTime float64) bool {
-	const moveSpeed = 300.0 // pixels per second
+	return is.handleKeyboardMovementWithSpeed(transform, deltaTime, 300.0)
+}
+
+func (is *InputSystem) handleKeyboardMovementWithSpeed(transform components.TransformComponent, deltaTime float64, moveSpeed float64) bool {
+	// moveSpeed provided by caller taking into account any active power-ups
 
 	currentX := transform.GetX()
 	newX := currentX

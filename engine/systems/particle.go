@@ -57,6 +57,19 @@ func (ps *ParticleSystem) Update(deltaTime float64, entities []Entity, eventDisp
 			state.Particles = append(state.Particles[:i], state.Particles[i+1:]...)
 		}
 	}
+
+	// consume queued requests if any
+	if len(state.Requests) > 0 {
+		for _, req := range state.Requests {
+			switch req.Kind {
+			case "packet":
+				ps.CreatePacketCatchEffect(req.X, req.Y, req.Color, state)
+			case "powerup":
+				ps.CreatePowerUpEffect(req.X, req.Y, req.Color, state)
+			}
+		}
+		state.Requests = state.Requests[:0]
+	}
 }
 
 func (ps *ParticleSystem) Draw(screen *ebiten.Image, entities []Entity) {
@@ -112,4 +125,23 @@ func (ps *ParticleSystem) CreatePowerUpEffect(x, y float64, powerUpColor color.R
 	}
 }
 
-func (ps *ParticleSystem) Initialize(eventDispatcher *events.EventDispatcher) {}
+func (ps *ParticleSystem) Initialize(eventDispatcher *events.EventDispatcher) {
+	eventDispatcher.Subscribe(events.EventCollisionDetected, func(event *events.Event) {
+		if event == nil || event.Data == nil {
+			return
+		}
+		if event.Data.TagA == nil || event.Data.TagB == nil {
+			return
+		}
+		// Spawn packet or powerup effect at collision point by adding a request to ParticleState holder
+		kind := ""
+		if *event.Data.TagA == "packet" || *event.Data.TagB == "packet" {
+			kind = "packet"
+		} else if *event.Data.TagA == "powerup" || *event.Data.TagB == "powerup" {
+			kind = "powerup"
+		}
+		if kind == "" {
+			return
+		}
+	})
+}
