@@ -42,6 +42,19 @@ func NewGame() *Game {
 	loadBalancer.AddComponent(&components.State{Current: components.StateMenu}) // Start in menu state
 	loadBalancer.AddComponent(&components.Combo{})                              // Add combo component
 	loadBalancer.AddComponent(components.NewSLA(99.5, 10))                      // Add SLA component to load balancer
+	loadBalancer.AddComponent(components.NewPowerUpState())                     // Hold power-up timers on LB for event consumers
+
+	// World-level spawner and session config entities
+	spawnerEntity := world.NewEntity()
+	spawnerEntity.AddComponent(components.NewSpawner())
+	sessionEntity := world.NewEntity()
+	sessionEntity.AddComponent(components.NewGameSession())
+	// Add world-level UI and menu state holders
+	uiState := world.NewEntity()
+	uiState.AddComponent(components.NewParticleState())
+	uiState.AddComponent(components.NewRouteState())
+	menuState := world.NewEntity()
+	menuState.AddComponent(components.NewMenuState())
 
 	// Spawn Backends
 	backendCount := 4
@@ -55,7 +68,7 @@ func NewGame() *Game {
 		backend.AddComponent(components.NewSprite(float64(backendWidth), 40, color.RGBA{0, 255, 0, 255}))
 		backend.AddComponent(components.NewCollider(float64(backendWidth), 40, "backend")) // Add collider for labels
 		backend.AddComponent(components.NewBackendAssignment(i))                           // Add backend assignment
-		backend.AddComponent(components.NewSLA(99.5, 10))                                  // Add SLA component
+		// Backends should not have SLA to avoid ambiguity; SLA tracked on load balancer
 	}
 
 	// --- System Initialization ---
@@ -97,25 +110,26 @@ func NewGame() *Game {
 		// Clean up any existing game entities (packets, power-ups, etc.)
 		game.cleanupGameEntities()
 
-		// Reset SLA system
-		if slaSys, err := systemFactory.GetSystemByType(game.systemManager, systems.SystemTypeSLA); err == nil {
-			if slaSystem, ok := slaSys.(*systems.SLASystem); ok {
-				// Reset counters first
-				slaSystem.Reset()
-				// Then set new parameters
-				if event.Data.SLA != nil {
-					slaSystem.SetTargetSLA(*event.Data.SLA)
-				}
-				if event.Data.Errors != nil {
-					slaSystem.SetErrorBudget(*event.Data.Errors)
+		// Reset SLA components (stateless systems)
+		for _, entity := range game.World.Entities {
+			if entity.HasComponent("SLA") {
+				if slaComp := entity.GetSLA(); slaComp != nil {
+					if sla, ok := slaComp.(*components.SLA); ok {
+						if event.Data.SLA != nil {
+							sla.SetTarget(*event.Data.SLA)
+						}
+						if event.Data.Errors != nil {
+							sla.SetErrorBudget(*event.Data.Errors)
+						}
+						sla.ResetCounters()
+					}
 				}
 			}
 		}
 
-		// Reset UI system
+		// Reset UI system view-model
 		if game.UISys != nil {
 			game.UISys.Reset()
-			// Update UI error budget to match SLA system
 			if event.Data.Errors != nil {
 				game.UISys.SetErrorBudget(*event.Data.Errors)
 			}
@@ -238,16 +252,17 @@ func (g *Game) Draw(screen *ebiten.Image) {
 		fmt.Println("Render systems added successfully")
 	}
 
+	// Convert []*entities.Entity to []systems.Entity
+	entitiesInterface := make([]systems.Entity, len(g.World.Entities))
+	for i, entity := range g.World.Entities {
+		entitiesInterface[i] = entity
+	}
+
 	// Handle different game states
 	switch g.gameState {
 	case components.StateMenu:
-		g.MenuSys.Draw(screen)
+		g.MenuSys.Draw(screen, entitiesInterface)
 	case components.StatePlaying:
-		// Convert []*entities.Entity to []systems.Entity
-		entitiesInterface := make([]systems.Entity, len(g.World.Entities))
-		for i, entity := range g.World.Entities {
-			entitiesInterface[i] = entity
-		}
 		g.RenderSys.UpdateWithScreen(1.0/60.0, entitiesInterface, g.eventDispatcher, screen)
 
 		// Draw particles and routing using system manager

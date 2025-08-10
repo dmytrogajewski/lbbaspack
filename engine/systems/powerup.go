@@ -2,6 +2,8 @@ package systems
 
 import (
 	"fmt"
+	"image/color"
+	"lbbaspack/engine/components"
 	"lbbaspack/engine/events"
 )
 
@@ -9,17 +11,13 @@ const SystemTypePowerUp SystemType = "powerup"
 
 type PowerUpSystem struct {
 	BaseSystem
-	activePowerUps map[string]float64 // powerup name -> remaining time
 }
 
 func NewPowerUpSystem() *PowerUpSystem {
 	return &PowerUpSystem{
 		BaseSystem: BaseSystem{
-			RequiredComponents: []string{
-				"PowerUpType",
-			},
+			RequiredComponents: []string{},
 		},
-		activePowerUps: make(map[string]float64),
 	}
 }
 
@@ -38,54 +36,106 @@ func (pus *PowerUpSystem) GetSystemInfo() *SystemInfo {
 }
 
 func (pus *PowerUpSystem) Update(deltaTime float64, entities []Entity, eventDispatcher *events.EventDispatcher) {
-	// Update active power-ups
-	for powerUpName, remainingTime := range pus.activePowerUps {
-		pus.activePowerUps[powerUpName] = remainingTime - deltaTime
-		if pus.activePowerUps[powerUpName] <= 0 {
-			delete(pus.activePowerUps, powerUpName)
-			fmt.Printf("Power-up %s expired\n", powerUpName)
+	// Find PowerUpState component holder
+	var state *components.PowerUpState
+	for _, e := range entities {
+		if comp := e.GetComponentByName("PowerUpState"); comp != nil {
+			if ps, ok := comp.(*components.PowerUpState); ok {
+				state = ps
+				break
+			}
+		}
+	}
+	if state == nil {
+		return
+	}
+
+	// Apply new activations and deactivate collected entity; queue particle effect
+	for _, e := range entities {
+		if e.HasComponent("PowerUpActivation") && e.HasComponent("PowerUpType") {
+			if put := e.GetPowerUpType(); put != nil {
+				name := put.GetName()
+				duration := put.GetDuration()
+				if state.RemainingByName == nil {
+					state.RemainingByName = make(map[string]float64)
+				}
+				state.RemainingByName[name] = duration
+			}
+			// Find ParticleState holder and append request
+			if t := e.GetTransform(); t != nil {
+				x := t.GetX() + 7.5
+				y := t.GetY() + 7.5
+				var col color.RGBA
+				if s := e.GetSprite(); s != nil {
+					col = s.GetColor()
+				}
+				for _, ent := range entities {
+					if comp := ent.GetComponentByName("ParticleState"); comp != nil {
+						if pstate, ok := comp.(*components.ParticleState); ok {
+							pstate.Requests = append(pstate.Requests, components.NewParticleEffectRequest(x, y, col, "powerup"))
+							break
+						}
+					}
+				}
+			}
+			// deactivate the powerup entity; Cleanup will remove it
+			e.(interface{ SetActive(bool) }).SetActive(false)
+			e.RemoveComponent("PowerUpActivation")
+		}
+	}
+
+	// Update timers
+	for name, rem := range state.RemainingByName {
+		newRem := rem - deltaTime
+		if newRem <= 0 {
+			delete(state.RemainingByName, name)
+			fmt.Printf("Power-up %s expired\n", name)
+			eventDispatcher.Publish(events.NewEvent(events.EventType("powerup_expired"), &events.EventData{Powerup: &name}))
+		} else {
+			state.RemainingByName[name] = newRem
 		}
 	}
 }
 
 func (pus *PowerUpSystem) Initialize(eventDispatcher *events.EventDispatcher) {
-	// Listen for power-up collected events
-	eventDispatcher.Subscribe(events.EventPowerUpCollected, func(event *events.Event) {
-		if event.Data.Powerup != nil {
-			pus.activatePowerUp(*event.Data.Powerup, eventDispatcher)
+	// Subscribe to generalized collision to detect powerup collections
+	eventDispatcher.Subscribe(events.EventCollisionDetected, func(event *events.Event) {
+		if event == nil || event.Data == nil {
+			return
+		}
+		if event.Data.TagA == nil || event.Data.TagB == nil {
+			return
+		}
+		// Powerup collected when loadbalancer collides with powerup
+		aIsLB := *event.Data.TagA == "loadbalancer"
+		bIsLB := *event.Data.TagB == "loadbalancer"
+		aIsPU := *event.Data.TagA == "powerup"
+		bIsPU := *event.Data.TagB == "powerup"
+		if (aIsLB && bIsPU) || (bIsLB && aIsPU) {
+			var pe Entity
+			if aIsPU {
+				if e, ok := event.Data.EntityA.(Entity); ok {
+					pe = e
+				}
+			} else {
+				if e, ok := event.Data.EntityB.(Entity); ok {
+					pe = e
+				}
+			}
+			if pe != nil {
+				if put := pe.GetPowerUpType(); put != nil {
+					name := put.GetName()
+					duration := put.GetDuration()
+					// Guard against duplicate activation markers
+					if !pe.HasComponent("PowerUpActivation") {
+						pe.AddComponent(components.NewPowerUpActivation(name, duration))
+					}
+				}
+			}
 		}
 	})
 }
 
-func (pus *PowerUpSystem) activatePowerUp(powerUpName string, eventDispatcher *events.EventDispatcher) {
-	// Set default duration for power-ups
-	duration := 10.0 // 10 seconds default
+// Test-only legacy helpers are defined in legacy_test_shims_test.go
 
-	// Set power-up specific durations
-	switch powerUpName {
-	case "SpeedBoost":
-		duration = 15.0
-	case "DoublePoints":
-		duration = 20.0
-	case "SlowMotion":
-		duration = 12.0
-	}
-
-	pus.activePowerUps[powerUpName] = duration
-	fmt.Printf("Power-up %s activated for %.1f seconds\n", powerUpName, duration)
-
-	// Publish power-up activated event
-	eventDispatcher.Publish(events.NewEvent(events.EventPowerUpActivated, &events.EventData{
-		Powerup:  &powerUpName,
-		Duration: &duration,
-	}))
-}
-
-func (pus *PowerUpSystem) IsPowerUpActive(powerUpName string) bool {
-	_, active := pus.activePowerUps[powerUpName]
-	return active
-}
-
-func (pus *PowerUpSystem) GetActivePowerUps() map[string]float64 {
-	return pus.activePowerUps
-}
+// Removed stateful getters

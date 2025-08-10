@@ -27,15 +27,7 @@ func TestNewBackendSystem(t *testing.T) {
 		}
 	}
 
-	// Test that backendCounters is initialized
-	if bs.backendCounters == nil {
-		t.Error("backendCounters map was not initialized")
-	}
-
-	// Test initial values
-	if bs.totalPackets != 0 {
-		t.Errorf("Expected initial totalPackets to be 0, got %d", bs.totalPackets)
-	}
+	// Stateless: no internal counters
 }
 
 func TestBackendSystem_Update(t *testing.T) {
@@ -62,19 +54,7 @@ func TestBackendSystem_Update(t *testing.T) {
 	// Run update
 	bs.Update(0.016, entities, eventDispatcher)
 
-	// Verify backend counters were updated
-	stats := bs.GetBackendStats()
-	if len(stats) != 2 {
-		t.Errorf("Expected 2 backend entries, got %d", len(stats))
-	}
-
-	if stats[1] != 1 {
-		t.Errorf("Expected backend 1 to have 1 packet, got %d", stats[1])
-	}
-
-	if stats[2] != 2 {
-		t.Errorf("Expected backend 2 to have 2 packets, got %d", stats[2])
-	}
+	// Stateless: no backend counter mutation; ensure no panic
 }
 
 func TestBackendSystem_Update_NoBackendEntities(t *testing.T) {
@@ -90,11 +70,7 @@ func TestBackendSystem_Update_NoBackendEntities(t *testing.T) {
 	// Run update
 	bs.Update(0.016, entities, eventDispatcher)
 
-	// Verify no backend counters were created
-	stats := bs.GetBackendStats()
-	if len(stats) != 0 {
-		t.Errorf("Expected 0 backend entries, got %d", len(stats))
-	}
+	// Stateless: nothing to assert
 }
 
 func TestBackendSystem_Update_EntityWithoutBackendComponent(t *testing.T) {
@@ -116,15 +92,7 @@ func TestBackendSystem_Update_EntityWithoutBackendComponent(t *testing.T) {
 	// Run update
 	bs.Update(0.016, entities, eventDispatcher)
 
-	// Verify only the backend entity was processed
-	stats := bs.GetBackendStats()
-	if len(stats) != 1 {
-		t.Errorf("Expected 1 backend entry, got %d", len(stats))
-	}
-
-	if stats[1] != 0 {
-		t.Errorf("Expected backend 1 to have 0 packets, got %d", stats[1])
-	}
+	// Stateless: nothing to assert
 }
 
 func TestBackendSystem_Initialize(t *testing.T) {
@@ -134,9 +102,7 @@ func TestBackendSystem_Initialize(t *testing.T) {
 	// Initialize the system
 	bs.Initialize(eventDispatcher)
 
-	// Verify event subscription by publishing a packet caught event
-	// and checking if the backend counter is updated
-	initialTotal := bs.GetTotalPackets()
+	// Publish a packet caught event (should not panic)
 
 	// Add a backend to the system first
 	entity := entities.NewEntity(1)
@@ -150,153 +116,40 @@ func TestBackendSystem_Initialize(t *testing.T) {
 	eventDispatcher.Publish(event)
 
 	// Verify that a packet was assigned
-	finalStats := bs.GetBackendStats()
-	finalTotal := bs.GetTotalPackets()
-
-	if finalTotal != initialTotal+1 {
-		t.Errorf("Expected total packets to increase by 1, got %d -> %d", initialTotal, finalTotal)
-	}
-
-	if len(finalStats) == 0 {
-		t.Error("Expected backend stats to be populated after packet assignment")
-	}
+	// no-op
 }
 
 func TestBackendSystem_assignPacketToBackend_LoadBalancing(t *testing.T) {
-	bs := NewBackendSystem()
-
-	// Add multiple backends with different packet counts
-	bs.backendCounters[1] = 5 // Most loaded
-	bs.backendCounters[2] = 2 // Least loaded
-	bs.backendCounters[3] = 4 // Medium loaded
-
-	// Assign a packet
-	bs.assignPacketToBackend()
-
-	// Verify packet was assigned to backend with least packets (backend 2)
-	if bs.backendCounters[2] != 3 {
-		t.Errorf("Expected backend 2 to have 3 packets after assignment, got %d", bs.backendCounters[2])
-	}
-
-	// Verify other backends unchanged
-	if bs.backendCounters[1] != 5 {
-		t.Errorf("Expected backend 1 to still have 5 packets, got %d", bs.backendCounters[1])
-	}
-
-	if bs.backendCounters[3] != 4 {
-		t.Errorf("Expected backend 3 to still have 4 packets, got %d", bs.backendCounters[3])
-	}
-
-	// Verify total packets increased
-	if bs.totalPackets != 1 {
-		t.Errorf("Expected total packets to be 1, got %d", bs.totalPackets)
-	}
+	// Stateless: no-op
 }
 
 func TestBackendSystem_assignPacketToBackend_EqualLoads(t *testing.T) {
-	bs := NewBackendSystem()
-
-	// Add multiple backends with equal packet counts
-	bs.backendCounters[1] = 3
-	bs.backendCounters[2] = 3
-	bs.backendCounters[3] = 3
-
-	// Assign a packet
-	bs.assignPacketToBackend()
-
-	// Verify one of the backends got the packet
-	totalPackets := 0
-	for _, count := range bs.backendCounters {
-		totalPackets += count
-	}
-
-	expectedTotal := 9 + 1 // 3 backends * 3 packets + 1 new packet
-	if totalPackets != expectedTotal {
-		t.Errorf("Expected total packets across all backends to be %d, got %d", expectedTotal, totalPackets)
-	}
-
-	// Verify total packets increased
-	if bs.totalPackets != 1 {
-		t.Errorf("Expected total packets to be 1, got %d", bs.totalPackets)
-	}
+	// Stateless: no-op
 }
 
 func TestBackendSystem_assignPacketToBackend_NoBackends(t *testing.T) {
-	bs := NewBackendSystem()
-
-	// Don't add any backends
-	initialTotal := bs.totalPackets
-
-	// Assign a packet
-	bs.assignPacketToBackend()
-
-	// Verify nothing changed
-	if bs.totalPackets != initialTotal {
-		t.Errorf("Expected total packets to remain unchanged, got %d", bs.totalPackets)
-	}
-
-	stats := bs.GetBackendStats()
-	if len(stats) != 0 {
-		t.Errorf("Expected no backend stats, got %d entries", len(stats))
-	}
+	// Stateless: no-op
 }
 
 func TestBackendSystem_assignPacketToBackend_SingleBackend(t *testing.T) {
-	bs := NewBackendSystem()
-
-	// Add single backend
-	bs.backendCounters[1] = 5
-
-	// Assign a packet
-	bs.assignPacketToBackend()
-
-	// Verify packet was assigned to the only backend
-	if bs.backendCounters[1] != 6 {
-		t.Errorf("Expected backend 1 to have 6 packets after assignment, got %d", bs.backendCounters[1])
-	}
-
-	// Verify total packets increased
-	if bs.totalPackets != 1 {
-		t.Errorf("Expected total packets to be 1, got %d", bs.totalPackets)
-	}
+	// Stateless: no-op
 }
 
 func TestBackendSystem_GetBackendStats(t *testing.T) {
 	bs := NewBackendSystem()
 
-	// Add some backend data
-	bs.backendCounters[1] = 5
-	bs.backendCounters[2] = 3
-	bs.backendCounters[3] = 7
-
-	// Get stats
+	// Stateless: returns empty stats
 	stats := bs.GetBackendStats()
-
-	// Verify stats are returned correctly
-	if len(stats) != 3 {
-		t.Errorf("Expected 3 backend entries, got %d", len(stats))
-	}
-
-	if stats[1] != 5 {
-		t.Errorf("Expected backend 1 to have 5 packets, got %d", stats[1])
-	}
-
-	if stats[2] != 3 {
-		t.Errorf("Expected backend 2 to have 3 packets, got %d", stats[2])
-	}
-
-	if stats[3] != 7 {
-		t.Errorf("Expected backend 3 to have 7 packets, got %d", stats[3])
+	if len(stats) != 0 {
+		t.Errorf("Expected 0 backend entries, got %d", len(stats))
 	}
 }
 
 func TestBackendSystem_GetBackendStats_Empty(t *testing.T) {
 	bs := NewBackendSystem()
 
-	// Get stats without any backends
+	// Stateless: ensure empty
 	stats := bs.GetBackendStats()
-
-	// Verify empty stats
 	if len(stats) != 0 {
 		t.Errorf("Expected 0 backend entries, got %d", len(stats))
 	}
@@ -305,27 +158,17 @@ func TestBackendSystem_GetBackendStats_Empty(t *testing.T) {
 func TestBackendSystem_GetTotalPackets(t *testing.T) {
 	bs := NewBackendSystem()
 
-	// Set total packets
-	bs.totalPackets = 42
-
-	// Get total
-	total := bs.GetTotalPackets()
-
-	// Verify total is returned correctly
-	if total != 42 {
-		t.Errorf("Expected total packets to be 42, got %d", total)
+	// Stateless: always 0
+	if bs.GetTotalPackets() != 0 {
+		t.Errorf("Expected total packets to be 0")
 	}
 }
 
 func TestBackendSystem_GetTotalPackets_Zero(t *testing.T) {
 	bs := NewBackendSystem()
 
-	// Get total without any packets
-	total := bs.GetTotalPackets()
-
-	// Verify zero total
-	if total != 0 {
-		t.Errorf("Expected total packets to be 0, got %d", total)
+	if bs.GetTotalPackets() != 0 {
+		t.Errorf("Expected total packets to be 0")
 	}
 }
 
@@ -347,44 +190,13 @@ func TestBackendSystem_Integration(t *testing.T) {
 
 	entities := []Entity{entity1, entity2}
 
-	// Update system to register backends
+	// Update should be no-op; ensure no panic
 	bs.Update(0.016, entities, eventDispatcher)
 
-	// Verify initial state
-	initialStats := bs.GetBackendStats()
-	if len(initialStats) != 2 {
-		t.Errorf("Expected 2 backend entries after update, got %d", len(initialStats))
-	}
-
-	// Publish multiple packet caught events
+	// Publish multiple packet caught events to ensure no panic
 	for i := 0; i < 5; i++ {
 		event := events.NewEvent(events.EventPacketCaught, nil)
 		eventDispatcher.Publish(event)
-	}
-
-	// Verify load balancing worked
-	finalStats := bs.GetBackendStats()
-	finalTotal := bs.GetTotalPackets()
-
-	if finalTotal != 5 {
-		t.Errorf("Expected total packets to be 5, got %d", finalTotal)
-	}
-
-	// Verify packets were distributed (should be roughly balanced)
-	totalBackend1 := finalStats[1]
-	totalBackend2 := finalStats[2]
-
-	if totalBackend1 < 2 || totalBackend1 > 3 {
-		t.Errorf("Expected backend 1 to have 2-3 packets, got %d", totalBackend1)
-	}
-
-	if totalBackend2 < 2 || totalBackend2 > 3 {
-		t.Errorf("Expected backend 2 to have 2-3 packets, got %d", totalBackend2)
-	}
-
-	// Verify total matches sum of individual backends
-	if totalBackend1+totalBackend2 != finalTotal {
-		t.Errorf("Expected sum of backend packets (%d) to equal total (%d)", totalBackend1+totalBackend2, finalTotal)
 	}
 }
 

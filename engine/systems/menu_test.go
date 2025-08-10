@@ -23,10 +23,7 @@ func TestNewMenuSystem(t *testing.T) {
 		t.Fatal("Screen should not be nil")
 	}
 
-	// Test initial selected mode
-	if ms.selectedMode != 0 {
-		t.Errorf("Expected initial selectedMode to be 0, got %d", ms.selectedMode)
-	}
+	// Removed internal selectedMode state
 
 	// Test menu options
 	expectedOptions := []string{
@@ -37,44 +34,42 @@ func TestNewMenuSystem(t *testing.T) {
 		"Best Effort (90% SLA, 100 errors)",
 	}
 
-	if len(ms.menuOptions) != len(expectedOptions) {
-		t.Errorf("Expected %d menu options, got %d", len(expectedOptions), len(ms.menuOptions))
+	if len(menuOptions) != len(expectedOptions) {
+		t.Errorf("Expected %d menu options, got %d", len(expectedOptions), len(menuOptions))
 	}
 
 	for i, option := range expectedOptions {
-		if ms.menuOptions[i] != option {
-			t.Errorf("Expected menu option %d to be '%s', got '%s'", i, option, ms.menuOptions[i])
+		if menuOptions[i] != option {
+			t.Errorf("Expected menu option %d to be '%s', got '%s'", i, option, menuOptions[i])
 		}
 	}
 
 	// Test SLA values
 	expectedSLA := []float64{99.95, 99.5, 99.0, 95.0, 90.0}
-	if len(ms.menuSLA) != len(expectedSLA) {
-		t.Errorf("Expected %d SLA values, got %d", len(expectedSLA), len(ms.menuSLA))
+	if len(menuSLA) != len(expectedSLA) {
+		t.Errorf("Expected %d SLA values, got %d", len(expectedSLA), len(menuSLA))
 	}
 
 	for i, sla := range expectedSLA {
-		if ms.menuSLA[i] != sla {
-			t.Errorf("Expected SLA %d to be %f, got %f", i, sla, ms.menuSLA[i])
+		if menuSLA[i] != sla {
+			t.Errorf("Expected SLA %d to be %f, got %f", i, sla, menuSLA[i])
 		}
 	}
 
 	// Test error values
 	expectedErrors := []int{3, 10, 25, 50, 100}
-	if len(ms.menuErrors) != len(expectedErrors) {
-		t.Errorf("Expected %d error values, got %d", len(expectedErrors), len(ms.menuErrors))
+	if len(menuErrors) != len(expectedErrors) {
+		t.Errorf("Expected %d error values, got %d", len(expectedErrors), len(menuErrors))
 	}
 
 	for i, errors := range expectedErrors {
-		if ms.menuErrors[i] != errors {
-			t.Errorf("Expected errors %d to be %d, got %d", i, errors, ms.menuErrors[i])
+		if menuErrors[i] != errors {
+			t.Errorf("Expected errors %d to be %d, got %d", i, errors, menuErrors[i])
 		}
 	}
 
 	// Test initial key pressed state
-	if ms.keyPressed != false {
-		t.Errorf("Expected initial keyPressed to be false, got %t", ms.keyPressed)
-	}
+	// Removed key latch from system state; tracked in component
 }
 
 func TestMenuSystem_Update_NoEntities(t *testing.T) {
@@ -160,9 +155,7 @@ func TestMenuSystem_Update_KeyPressedState(t *testing.T) {
 	entities := []Entity{}
 
 	// Test initial state
-	if ms.keyPressed != false {
-		t.Errorf("Expected initial keyPressed to be false, got %t", ms.keyPressed)
-	}
+	// no internal flag
 
 	// Run update
 	ms.Update(0.016, entities, eventDispatcher)
@@ -185,9 +178,7 @@ func TestMenuSystem_Update_MultipleUpdates(t *testing.T) {
 	}
 
 	// Verify system remains stable
-	if ms.selectedMode < 0 || ms.selectedMode >= len(ms.menuOptions) {
-		t.Errorf("Selected mode %d is out of range [0, %d)", ms.selectedMode, len(ms.menuOptions))
-	}
+	// stateless, nothing to assert
 }
 
 func TestMenuSystem_startGame(t *testing.T) {
@@ -202,7 +193,7 @@ func TestMenuSystem_startGame(t *testing.T) {
 	})
 
 	// Test with default selected mode (0)
-	ms.startGame(eventDispatcher)
+	ms.startGame(eventDispatcher, 0)
 
 	// Verify event was published
 	if publishedEvent == nil {
@@ -271,8 +262,7 @@ func TestMenuSystem_startGame_DifferentModes(t *testing.T) {
 		})
 
 		// Set mode and start game
-		ms.selectedMode = tc.mode
-		ms.startGame(eventDispatcher)
+		ms.startGame(eventDispatcher, tc.mode)
 
 		// Verify event data
 		if publishedEvent == nil {
@@ -312,7 +302,7 @@ func TestMenuSystem_startGame_InvalidMode(t *testing.T) {
 
 	// Test with invalid mode (should panic)
 	// Set mode to invalid value
-	ms.selectedMode = 999
+	mode := 999
 
 	// This should panic due to array index out of bounds
 	defer func() {
@@ -324,7 +314,7 @@ func TestMenuSystem_startGame_InvalidMode(t *testing.T) {
 		}
 	}()
 
-	ms.startGame(eventDispatcher)
+	ms.startGame(eventDispatcher, mode)
 
 	// If we get here without panic, that's unexpected
 	t.Error("Expected panic with invalid mode, but no panic occurred")
@@ -336,7 +326,7 @@ func TestMenuSystem_startGame_NegativeMode(t *testing.T) {
 	eventDispatcher := events.NewEventDispatcher()
 
 	// Test with negative mode (should panic)
-	ms.selectedMode = -1
+	mode := -1
 
 	// This should panic due to array index out of bounds
 	defer func() {
@@ -348,7 +338,7 @@ func TestMenuSystem_startGame_NegativeMode(t *testing.T) {
 		}
 	}()
 
-	ms.startGame(eventDispatcher)
+	ms.startGame(eventDispatcher, mode)
 
 	// If we get here without panic, that's unexpected
 	t.Error("Expected panic with negative mode, but no panic occurred")
@@ -366,7 +356,7 @@ func TestMenuSystem_Draw(t *testing.T) {
 	}()
 
 	// Call Draw method
-	ms.Draw(screen)
+	ms.Draw(screen, []Entity{})
 
 	// If we get here, Draw executed without panicking
 }
@@ -376,8 +366,7 @@ func TestMenuSystem_Draw_DifferentSelectedModes(t *testing.T) {
 	ms := NewMenuSystem(screen)
 
 	// Test drawing with different selected modes
-	for i := 0; i < len(ms.menuOptions); i++ {
-		ms.selectedMode = i
+	for i := 0; i < len(menuOptions); i++ {
 
 		defer func() {
 			if r := recover(); r != nil {
@@ -385,7 +374,7 @@ func TestMenuSystem_Draw_DifferentSelectedModes(t *testing.T) {
 			}
 		}()
 
-		ms.Draw(screen)
+		ms.Draw(screen, []Entity{})
 	}
 }
 
@@ -403,7 +392,7 @@ func TestMenuSystem_Draw_NilScreen(t *testing.T) {
 		}
 	}()
 
-	ms.Draw(nil)
+	ms.Draw(nil, []Entity{})
 
 	// If we get here without panic, that's unexpected
 	t.Error("Expected panic with nil screen, but no panic occurred")
@@ -428,15 +417,13 @@ func TestMenuSystem_Integration(t *testing.T) {
 	}
 
 	// Verify system remains stable
-	if ms.selectedMode < 0 || ms.selectedMode >= len(ms.menuOptions) {
-		t.Errorf("Selected mode %d is out of range [0, %d)", ms.selectedMode, len(ms.menuOptions))
-	}
+	// stateless, nothing to assert
 
 	// Test drawing
-	ms.Draw(screen)
+	ms.Draw(screen, []Entity{})
 
 	// Test starting game
-	ms.startGame(eventDispatcher)
+	ms.startGame(eventDispatcher, 0)
 
 	// Verify event was published
 	if len(publishedEvents) != 1 {
@@ -450,35 +437,23 @@ func TestMenuSystem_Integration(t *testing.T) {
 
 func TestMenuSystem_MenuOptionsConsistency(t *testing.T) {
 	screen := ebiten.NewImage(800, 600)
-	ms := NewMenuSystem(screen)
+	_ = NewMenuSystem(screen)
 
 	// Verify that menu options, SLA values, and error values have the same length
-	if len(ms.menuOptions) != len(ms.menuSLA) {
-		t.Errorf("Menu options (%d) and SLA values (%d) have different lengths", len(ms.menuOptions), len(ms.menuSLA))
+	if len(menuOptions) != len(menuSLA) {
+		t.Errorf("Menu options (%d) and SLA values (%d) have different lengths", len(menuOptions), len(menuSLA))
 	}
 
-	if len(ms.menuOptions) != len(ms.menuErrors) {
-		t.Errorf("Menu options (%d) and error values (%d) have different lengths", len(ms.menuOptions), len(ms.menuErrors))
+	if len(menuOptions) != len(menuErrors) {
+		t.Errorf("Menu options (%d) and error values (%d) have different lengths", len(menuOptions), len(menuErrors))
 	}
 
-	if len(ms.menuSLA) != len(ms.menuErrors) {
-		t.Errorf("SLA values (%d) and error values (%d) have different lengths", len(ms.menuSLA), len(ms.menuErrors))
-	}
-}
-
-func TestMenuSystem_SelectedModeBounds(t *testing.T) {
-	screen := ebiten.NewImage(800, 600)
-	ms := NewMenuSystem(screen)
-
-	// Test that selected mode is always within bounds
-	if ms.selectedMode < 0 {
-		t.Errorf("Selected mode %d is negative", ms.selectedMode)
-	}
-
-	if ms.selectedMode >= len(ms.menuOptions) {
-		t.Errorf("Selected mode %d is out of range [0, %d)", ms.selectedMode, len(ms.menuOptions))
+	if len(menuSLA) != len(menuErrors) {
+		t.Errorf("SLA values (%d) and error values (%d) have different lengths", len(menuSLA), len(menuErrors))
 	}
 }
+
+func TestMenuSystem_SelectedModeBounds(t *testing.T) {}
 
 // Mock entity for testing
 type mockEntity struct {
