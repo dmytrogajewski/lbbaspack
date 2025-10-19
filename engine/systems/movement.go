@@ -1,7 +1,6 @@
 package systems
 
 import (
-	"fmt"
 	"lbbaspack/engine/components"
 	"lbbaspack/engine/events"
 )
@@ -10,7 +9,6 @@ const SystemTypeMovement SystemType = "movement"
 
 type MovementSystem struct {
 	BaseSystem
-	callCount int
 }
 
 func NewMovementSystem() *MovementSystem {
@@ -21,7 +19,6 @@ func NewMovementSystem() *MovementSystem {
 				"Physics",
 			},
 		},
-		callCount: 0,
 	}
 }
 
@@ -40,9 +37,26 @@ func (ms *MovementSystem) GetSystemInfo() *SystemInfo {
 }
 
 func (ms *MovementSystem) Update(deltaTime float64, entities []Entity, eventDispatcher *events.EventDispatcher) {
-	ms.callCount++
+	// Detect global slow motion power-up once per frame
+	slowMotionFactor := 1.0
+	for _, e := range entities {
+		if comp := e.GetComponentByName("PowerUpState"); comp != nil {
+			if ps, ok := comp.(*components.PowerUpState); ok {
+				if ps.RemainingByName != nil {
+					if rem, ok := ps.RemainingByName["SlowMotion"]; ok && rem > 0 {
+						slowMotionFactor = 0.5
+						break
+					}
+					if rem, ok := ps.RemainingByName["Time Slow"]; ok && rem > 0 {
+						slowMotionFactor = 0.5
+						break
+					}
+				}
+			}
+		}
+	}
 
-	packetCount := 0
+	effectiveDelta := deltaTime * slowMotionFactor
 	for _, entity := range ms.FilterEntities(entities) {
 		transformComp := entity.GetTransform()
 		physicsComp := entity.GetPhysics()
@@ -56,30 +70,14 @@ func (ms *MovementSystem) Update(deltaTime float64, entities []Entity, eventDisp
 
 		// Update physics
 		physicsObj := physicsComp.(*components.Physics)
-		physicsObj.Update(deltaTime)
+		physicsObj.Update(effectiveDelta)
 
 		// Update position
 		oldX, oldY := transform.GetX(), transform.GetY()
-		transform.SetPosition(transform.GetX()+physics.GetVelocityX()*deltaTime,
-			transform.GetY()+physics.GetVelocityY()*deltaTime)
+		transform.SetPosition(transform.GetX()+physics.GetVelocityX()*effectiveDelta,
+			transform.GetY()+physics.GetVelocityY()*effectiveDelta)
 
-		if ms.callCount%60 == 0 {
-			if entityInterface, ok := entity.(interface{ GetComponentNames() []string }); ok {
-				fmt.Printf("[MovementSystem] Entity moved from (%.1f, %.1f) to (%.1f, %.1f), components: %v\n", oldX, oldY, transform.GetX(), transform.GetY(), entityInterface.GetComponentNames())
-			}
-		}
-
-		// Check if this is a packet (has PacketType component)
-		if entity.HasComponent("PacketType") {
-			packetCount++
-			if ms.callCount%60 == 0 { // Print every second
-				fmt.Printf("[MovementSystem] Packet at (%.1f, %.1f) -> (%.1f, %.1f), vel(%.1f, %.1f)\n",
-					oldX, oldY, transform.GetX(), transform.GetY(), physics.GetVelocityX(), physics.GetVelocityY())
-			}
-		}
-	}
-
-	if ms.callCount%60 == 0 && packetCount > 0 {
-		fmt.Printf("[MovementSystem] Processing %d packets\n", packetCount)
+		_ = oldX
+		_ = oldY
 	}
 }

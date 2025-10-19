@@ -30,10 +30,7 @@ func TestNewMovementSystem(t *testing.T) {
 		}
 	}
 
-	// Test initial call count
-	if ms.callCount != 0 {
-		t.Errorf("Expected initial callCount to be 0, got %d", ms.callCount)
-	}
+	// No internal counters anymore
 }
 
 func TestMovementSystem_Update_NoEntities(t *testing.T) {
@@ -46,10 +43,7 @@ func TestMovementSystem_Update_NoEntities(t *testing.T) {
 	// Run update
 	ms.Update(0.016, entities, eventDispatcher)
 
-	// Verify call count was incremented
-	if ms.callCount != 1 {
-		t.Errorf("Expected callCount to be 1, got %d", ms.callCount)
-	}
+	// No internal counters anymore
 }
 
 func TestMovementSystem_Update_EntityWithoutRequiredComponents(t *testing.T) {
@@ -66,10 +60,7 @@ func TestMovementSystem_Update_EntityWithoutRequiredComponents(t *testing.T) {
 	// Run update
 	ms.Update(0.016, entities, eventDispatcher)
 
-	// Verify call count was incremented
-	if ms.callCount != 1 {
-		t.Errorf("Expected callCount to be 1, got %d", ms.callCount)
-	}
+	// No internal counters anymore
 
 	// Verify transform position remains unchanged
 	// (since no physics component, movement should not be processed)
@@ -99,10 +90,7 @@ func TestMovementSystem_Update_EntityWithPhysicsOnly(t *testing.T) {
 	// Run update
 	ms.Update(0.016, entities, eventDispatcher)
 
-	// Verify call count was incremented
-	if ms.callCount != 1 {
-		t.Errorf("Expected callCount to be 1, got %d", ms.callCount)
-	}
+	// The system should skip entities without required components
 
 	// The system should skip entities without required components
 }
@@ -119,10 +107,7 @@ func TestMovementSystem_Update_EntityWithBothComponents(t *testing.T) {
 	// Run update
 	ms.Update(0.016, entities, eventDispatcher)
 
-	// Verify call count was incremented
-	if ms.callCount != 1 {
-		t.Errorf("Expected callCount to be 1, got %d", ms.callCount)
-	}
+	// No internal counters anymore
 
 	// Verify transform position was updated based on physics
 	transformComp := entity.GetTransform()
@@ -247,10 +232,7 @@ func TestMovementSystem_Update_EntityWithPacketType(t *testing.T) {
 	// Run update
 	ms.Update(0.016, entities, eventDispatcher)
 
-	// Verify call count was incremented
-	if ms.callCount != 1 {
-		t.Errorf("Expected callCount to be 1, got %d", ms.callCount)
-	}
+	// No internal counters anymore
 
 	// Verify transform position was updated
 	transformComp := entity.GetTransform()
@@ -285,10 +267,7 @@ func TestMovementSystem_Update_EntityWithInvalidComponentTypes(t *testing.T) {
 	// Run update
 	ms.Update(0.016, entities, eventDispatcher)
 
-	// Verify call count was incremented
-	if ms.callCount != 1 {
-		t.Errorf("Expected callCount to be 1, got %d", ms.callCount)
-	}
+	// No internal counters anymore
 
 	// The system should skip entities with invalid component types
 }
@@ -305,10 +284,7 @@ func TestMovementSystem_Update_EntityWithNullComponents(t *testing.T) {
 	// Run update
 	ms.Update(0.016, entities, eventDispatcher)
 
-	// Verify call count was incremented
-	if ms.callCount != 1 {
-		t.Errorf("Expected callCount to be 1, got %d", ms.callCount)
-	}
+	// No internal counters anymore
 
 	// The system should handle null components gracefully
 }
@@ -409,10 +385,7 @@ func TestMovementSystem_Update_MultipleUpdates(t *testing.T) {
 		ms.Update(0.016, entities, eventDispatcher)
 	}
 
-	// Verify call count was incremented correctly
-	if ms.callCount != 5 {
-		t.Errorf("Expected callCount to be 5, got %d", ms.callCount)
-	}
+	// No internal counters anymore
 
 	// Verify transform position was updated correctly
 	transformComp := entity.GetTransform()
@@ -509,15 +482,12 @@ func TestMovementSystem_Update_CallCountLogging(t *testing.T) {
 
 	entities := []Entity{entity}
 
-	// Run updates to reach call count that triggers logging (every 60 calls)
+	// Run updates to reach previously logged count
 	for i := 0; i < 60; i++ {
 		ms.Update(0.016, entities, eventDispatcher)
 	}
 
-	// Verify call count is 60
-	if ms.callCount != 60 {
-		t.Errorf("Expected callCount to be 60, got %d", ms.callCount)
-	}
+	// No internal counters anymore
 
 	// The system should have logged movement information
 	// We can't easily test the actual logging output, but we can verify the system didn't crash
@@ -535,15 +505,12 @@ func TestMovementSystem_Update_PacketLogging(t *testing.T) {
 
 	entities := []Entity{entity}
 
-	// Run updates to reach call count that triggers packet logging (every 60 calls)
+	// Run updates to reach previously logged count
 	for i := 0; i < 60; i++ {
 		ms.Update(0.016, entities, eventDispatcher)
 	}
 
-	// Verify call count is 60
-	if ms.callCount != 60 {
-		t.Errorf("Expected callCount to be 60, got %d", ms.callCount)
-	}
+	// No internal counters anymore
 
 	// The system should have logged packet information
 	// We can't easily test the actual logging output, but we can verify the system didn't crash
@@ -568,10 +535,7 @@ func TestMovementSystem_Integration(t *testing.T) {
 		ms.Update(0.016, entities, eventDispatcher)
 	}
 
-	// Verify call count
-	if ms.callCount != 10 {
-		t.Errorf("Expected callCount to be 10, got %d", ms.callCount)
-	}
+	// No internal counters anymore
 
 	// Verify all entities were processed correctly
 	transform1 := entity1.GetTransform()

@@ -11,10 +11,6 @@ const SystemTypeInput SystemType = "input"
 
 type InputSystem struct {
 	BaseSystem
-	lastMouseX        float64
-	lastMouseY        float64
-	activeInputMethod string // "keyboard" or "mouse"
-	keyboardLastUsed  bool   // Track if keyboard was used in the last frame
 }
 
 func NewInputSystem() *InputSystem {
@@ -25,10 +21,6 @@ func NewInputSystem() *InputSystem {
 				"State",
 			},
 		},
-		lastMouseX:        0,
-		lastMouseY:        0,
-		activeInputMethod: "mouse", // Start with mouse as default
-		keyboardLastUsed:  false,
 	}
 }
 
@@ -53,6 +45,25 @@ func (is *InputSystem) Update(deltaTime float64, entities []Entity, eventDispatc
 	// Handle input for load balancer movement
 	filteredEntities := is.FilterEntities(entities)
 
+	// Read active power-ups (Speed Boost) from any holder entity
+	moveSpeed := 300.0
+	for _, e := range entities {
+		if comp := e.GetComponentByName("PowerUpState"); comp != nil {
+			if ps, ok := comp.(*components.PowerUpState); ok {
+				if ps.RemainingByName != nil {
+					if rem, ok := ps.RemainingByName["Speed Boost"]; ok && rem > 0 {
+						moveSpeed = 450.0
+						break
+					}
+					if rem, ok := ps.RemainingByName["SpeedBoost"]; ok && rem > 0 {
+						moveSpeed = 450.0
+						break
+					}
+				}
+			}
+		}
+	}
+
 	for _, entity := range filteredEntities {
 		transformComp := entity.GetTransform()
 		stateComp := entity.GetState()
@@ -65,7 +76,7 @@ func (is *InputSystem) Update(deltaTime float64, entities []Entity, eventDispatc
 
 		// Only process input if game is in playing state
 		if state.GetState() == "playing" {
-			is.handleLoadBalancerInput(transform, eventDispatcher, deltaTime)
+			is.handleLoadBalancerInputWithSpeed(transform, eventDispatcher, deltaTime, moveSpeed)
 		}
 	}
 }
@@ -77,47 +88,26 @@ func (is *InputSystem) handleKeyboardInput(eventDispatcher *events.EventDispatch
 	}
 }
 
+// Legacy signature kept for tests; uses default moveSpeed
 func (is *InputSystem) handleLoadBalancerInput(transform components.TransformComponent, eventDispatcher *events.EventDispatcher, deltaTime float64) {
-	// Check for keyboard input
-	keyboardMoved := is.handleKeyboardMovement(transform, deltaTime)
-
-	// Check for mouse input (but don't apply it yet)
-	mouseX, _ := ebiten.CursorPosition()
-	mouseMoved := mouseX != int(is.lastMouseX)
-
-	// Update input method tracking
-	if keyboardMoved {
-		// Keyboard was used - switch to keyboard mode
-		is.activeInputMethod = "keyboard"
-		is.keyboardLastUsed = true
-	} else if mouseMoved && is.activeInputMethod == "mouse" {
-		// Mouse was moved and we're already in mouse mode - stay in mouse mode
-		is.keyboardLastUsed = false
-	} else if mouseMoved && is.activeInputMethod == "keyboard" && !is.keyboardLastUsed {
-		// Mouse was moved and we're in keyboard mode but keyboard hasn't been used recently
-		// Switch to mouse mode
-		is.activeInputMethod = "mouse"
-		is.keyboardLastUsed = false
-	} else if !keyboardMoved && !mouseMoved {
-		// No input detected - maintain current mode
-		is.keyboardLastUsed = false
-	}
-
-	// Apply input based on active method
-	if is.activeInputMethod == "keyboard" {
-		// In keyboard mode - only apply keyboard input
-		// (keyboard input was already applied in handleKeyboardMovement)
-	} else {
-		// In mouse mode - apply mouse input
-		is.handleMouseInput(transform, eventDispatcher)
-	}
-
-	// Update last mouse position
-	is.lastMouseX = float64(mouseX)
+	is.handleLoadBalancerInputWithSpeed(transform, eventDispatcher, deltaTime, 300.0)
 }
 
+func (is *InputSystem) handleLoadBalancerInputWithSpeed(transform components.TransformComponent, eventDispatcher *events.EventDispatcher, deltaTime float64, moveSpeed float64) {
+	// Apply both inputs with keyboard taking precedence if moved this frame
+	keyboardMoved := is.handleKeyboardMovementWithSpeed(transform, deltaTime, moveSpeed)
+	if !keyboardMoved {
+		is.handleMouseInput(transform, eventDispatcher)
+	}
+}
+
+// Legacy signature kept for tests; uses default moveSpeed
 func (is *InputSystem) handleKeyboardMovement(transform components.TransformComponent, deltaTime float64) bool {
-	const moveSpeed = 300.0 // pixels per second
+	return is.handleKeyboardMovementWithSpeed(transform, deltaTime, 300.0)
+}
+
+func (is *InputSystem) handleKeyboardMovementWithSpeed(transform components.TransformComponent, deltaTime float64, moveSpeed float64) bool {
+	// moveSpeed provided by caller taking into account any active power-ups
 
 	currentX := transform.GetX()
 	newX := currentX
@@ -140,6 +130,11 @@ func (is *InputSystem) handleKeyboardMovement(transform components.TransformComp
 }
 
 func (is *InputSystem) handleMouseInput(transform components.TransformComponent, eventDispatcher *events.EventDispatcher) {
+	// Only apply mouse movement while left button is pressed
+	if !ebiten.IsMouseButtonPressed(ebiten.MouseButtonLeft) {
+		return
+	}
+
 	// Get mouse position
 	mouseX, _ := ebiten.CursorPosition()
 

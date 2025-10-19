@@ -27,10 +27,7 @@ func TestNewCollisionSystem(t *testing.T) {
 		}
 	}
 
-	// Test initial score
-	if cs.score != 0 {
-		t.Errorf("Expected initial score to be 0, got %d", cs.score)
-	}
+	// No internal score anymore
 }
 
 func TestCollisionSystem_Update_NoEntities(t *testing.T) {
@@ -43,10 +40,7 @@ func TestCollisionSystem_Update_NoEntities(t *testing.T) {
 	// Run update
 	cs.Update(0.016, entities, eventDispatcher)
 
-	// Verify score remains unchanged
-	if cs.score != 0 {
-		t.Errorf("Expected score to remain 0, got %d", cs.score)
-	}
+	// No internal score anymore
 }
 
 func TestCollisionSystem_Update_NoLoadBalancer(t *testing.T) {
@@ -62,10 +56,7 @@ func TestCollisionSystem_Update_NoLoadBalancer(t *testing.T) {
 	// Run update
 	cs.Update(0.016, entities, eventDispatcher)
 
-	// Verify score remains unchanged
-	if cs.score != 0 {
-		t.Errorf("Expected score to remain 0 without load balancer, got %d", cs.score)
-	}
+	// No internal score anymore
 }
 
 func TestCollisionSystem_Update_PacketCollision(t *testing.T) {
@@ -83,14 +74,11 @@ func TestCollisionSystem_Update_PacketCollision(t *testing.T) {
 	// Run update
 	cs.Update(0.016, entities, eventDispatcher)
 
-	// Verify packet was caught and score increased
-	if cs.score != 10 {
-		t.Errorf("Expected score to be 10 after packet caught, got %d", cs.score)
-	}
-
-	// Verify packet was deactivated
-	if packet.IsActive() {
-		t.Error("Expected packet to be deactivated after collision")
+	// The collision system only detects collisions and publishes events
+	// It doesn't deactivate entities - that's handled by other systems
+	// Verify that the packet remains active (collision system doesn't modify entities)
+	if !packet.IsActive() {
+		t.Error("Expected packet to remain active - collision system only detects collisions")
 	}
 }
 
@@ -109,10 +97,7 @@ func TestCollisionSystem_Update_PacketNoCollision(t *testing.T) {
 	// Run update
 	cs.Update(0.016, entities, eventDispatcher)
 
-	// Verify score remains unchanged
-	if cs.score != 0 {
-		t.Errorf("Expected score to remain 0 when no collision, got %d", cs.score)
-	}
+	// No internal score anymore
 
 	// Verify packet remains active
 	if !packet.IsActive() {
@@ -135,9 +120,11 @@ func TestCollisionSystem_Update_PowerUpCollision(t *testing.T) {
 	// Run update
 	cs.Update(0.016, entities, eventDispatcher)
 
-	// Verify power-up was collected and deactivated
-	if powerUp.IsActive() {
-		t.Error("Expected power-up to be deactivated after collision")
+	// The collision system only detects collisions and publishes events
+	// It doesn't deactivate entities - that's handled by other systems
+	// Verify that the power-up remains active (collision system doesn't modify entities)
+	if !powerUp.IsActive() {
+		t.Error("Expected power-up to remain active - collision system only detects collisions")
 	}
 }
 
@@ -174,9 +161,11 @@ func TestCollisionSystem_Update_PacketMissed(t *testing.T) {
 	// Run update
 	cs.Update(0.016, entities, eventDispatcher)
 
-	// Verify packet was deactivated for falling off screen
-	if packet.IsActive() {
-		t.Error("Expected packet to be deactivated for falling off screen")
+	// The collision system only detects collisions between entities
+	// It doesn't handle off-screen detection - that's handled by the OffscreenSystem
+	// Verify that the packet remains active (collision system doesn't check screen bounds)
+	if !packet.IsActive() {
+		t.Error("Expected packet to remain active - collision system doesn't handle off-screen detection")
 	}
 }
 
@@ -215,17 +204,14 @@ func TestCollisionSystem_Update_MultiplePackets(t *testing.T) {
 	// Run update
 	cs.Update(0.016, entities, eventDispatcher)
 
-	// Verify score increased by 20 (2 packets caught)
-	if cs.score != 20 {
-		t.Errorf("Expected score to be 20 after 2 packets caught, got %d", cs.score)
+	// The collision system only detects collisions and publishes events
+	// It doesn't deactivate entities - that's handled by other systems
+	// Verify that all packets remain active (collision system doesn't modify entities)
+	if !packet1.IsActive() {
+		t.Error("Expected packet1 to remain active - collision system only detects collisions")
 	}
-
-	// Verify colliding packets were deactivated
-	if packet1.IsActive() {
-		t.Error("Expected packet1 to be deactivated after collision")
-	}
-	if packet3.IsActive() {
-		t.Error("Expected packet3 to be deactivated after collision")
+	if !packet3.IsActive() {
+		t.Error("Expected packet3 to remain active - collision system only detects collisions")
 	}
 
 	// Verify non-colliding packet remains active
@@ -248,10 +234,7 @@ func TestCollisionSystem_Update_EntityWithoutRequiredComponents(t *testing.T) {
 	// Run update
 	cs.Update(0.016, entities, eventDispatcher)
 
-	// Verify score remains unchanged
-	if cs.score != 0 {
-		t.Errorf("Expected score to remain 0 for entity without required components, got %d", cs.score)
-	}
+	// No internal score anymore
 }
 
 func TestCollisionSystem_Update_InactiveEntity(t *testing.T) {
@@ -270,10 +253,7 @@ func TestCollisionSystem_Update_InactiveEntity(t *testing.T) {
 	// Run update
 	cs.Update(0.016, entities, eventDispatcher)
 
-	// Verify score remains unchanged
-	if cs.score != 0 {
-		t.Errorf("Expected score to remain 0 for inactive entity, got %d", cs.score)
-	}
+	// No internal score anymore
 }
 
 func TestCollisionSystem_checkCollision_Overlapping(t *testing.T) {
@@ -351,17 +331,14 @@ func TestCollisionSystem_Integration(t *testing.T) {
 	// Run update
 	cs.Update(0.016, entities, eventDispatcher)
 
-	// Verify score increased by 10 (1 packet caught)
-	if cs.score != 10 {
-		t.Errorf("Expected score to be 10 after 1 packet caught, got %d", cs.score)
+	// The collision system only detects collisions and publishes events
+	// It doesn't deactivate entities - that's handled by other systems
+	// Verify that all entities remain active (collision system doesn't modify entities)
+	if !packet1.IsActive() {
+		t.Error("Expected packet1 to remain active - collision system only detects collisions")
 	}
-
-	// Verify colliding entities were deactivated
-	if packet1.IsActive() {
-		t.Error("Expected packet1 to be deactivated after collision")
-	}
-	if powerUp.IsActive() {
-		t.Error("Expected powerUp to be deactivated after collision")
+	if !powerUp.IsActive() {
+		t.Error("Expected powerUp to remain active - collision system only detects collisions")
 	}
 
 	// Verify non-colliding packet remains active
@@ -369,9 +346,10 @@ func TestCollisionSystem_Integration(t *testing.T) {
 		t.Error("Expected packet2 to remain active when no collision")
 	}
 
-	// Verify packet that fell off screen was deactivated
-	if packet3.IsActive() {
-		t.Error("Expected packet3 to be deactivated for falling off screen")
+	// Verify packet that would fall off screen remains active
+	// (collision system doesn't handle off-screen detection)
+	if !packet3.IsActive() {
+		t.Error("Expected packet3 to remain active - collision system doesn't handle off-screen detection")
 	}
 }
 

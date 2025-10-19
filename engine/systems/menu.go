@@ -2,6 +2,7 @@ package systems
 
 import (
 	"image/color"
+	"lbbaspack/engine/components"
 	"lbbaspack/engine/events"
 
 	"github.com/hajimehoshi/ebiten/v2"
@@ -13,64 +14,76 @@ const SystemTypeMenu SystemType = "menu"
 
 type MenuSystem struct {
 	BaseSystem
-	Screen       *ebiten.Image
-	selectedMode int
-	menuOptions  []string
-	menuSLA      []float64
-	menuErrors   []int
-	keyPressed   bool
+	Screen *ebiten.Image
 }
 
 func NewMenuSystem(screen *ebiten.Image) *MenuSystem {
 	return &MenuSystem{
-		BaseSystem:   BaseSystem{},
-		Screen:       screen,
-		selectedMode: 0,
-		menuOptions: []string{
-			"Mission Critical (99.95% SLA, 3 errors)",
-			"Business Critical (99.5% SLA, 10 errors)",
-			"Business Operational (99% SLA, 25 errors)",
-			"Office Productivity (95% SLA, 50 errors)",
-			"Best Effort (90% SLA, 100 errors)",
+		BaseSystem: BaseSystem{
+			RequiredComponents: []string{
+				"MenuState", // Requires MenuState component
+			},
 		},
-		menuSLA:    []float64{99.95, 99.5, 99.0, 95.0, 90.0},
-		menuErrors: []int{3, 10, 25, 50, 100},
-		keyPressed: false,
+		Screen: screen,
 	}
 }
 
 func (ms *MenuSystem) Update(deltaTime float64, entities []Entity, eventDispatcher *events.EventDispatcher) {
-	// Handle menu navigation with key state tracking
-	if ebiten.IsKeyPressed(ebiten.KeyUp) && !ms.keyPressed {
-		ms.selectedMode = (ms.selectedMode - 1 + len(ms.menuOptions)) % len(ms.menuOptions)
-		ms.keyPressed = true
+	// Read/write MenuState component
+	var menuState *components.MenuState
+	for _, e := range entities {
+		if comp := e.GetComponentByName("MenuState"); comp != nil {
+			if st, ok := comp.(*components.MenuState); ok {
+				menuState = st
+				break
+			}
+		}
 	}
-	if ebiten.IsKeyPressed(ebiten.KeyDown) && !ms.keyPressed {
-		ms.selectedMode = (ms.selectedMode + 1) % len(ms.menuOptions)
-		ms.keyPressed = true
-	}
-	if ebiten.IsKeyPressed(ebiten.KeyEnter) && !ms.keyPressed {
-		// Start game with selected mode
-		ms.startGame(eventDispatcher)
-		ms.keyPressed = true
+	if menuState == nil {
+		return
 	}
 
-	// Reset key pressed state when no keys are pressed
+	// Handle input with key latch stored in component
+	if ebiten.IsKeyPressed(ebiten.KeyUp) && !menuState.KeyLatch {
+		menuState.SelectedMode = (menuState.SelectedMode - 1 + len(menuOptions)) % len(menuOptions)
+		menuState.KeyLatch = true
+	}
+	if ebiten.IsKeyPressed(ebiten.KeyDown) && !menuState.KeyLatch {
+		menuState.SelectedMode = (menuState.SelectedMode + 1) % len(menuOptions)
+		menuState.KeyLatch = true
+	}
+	if ebiten.IsKeyPressed(ebiten.KeyEnter) && !menuState.KeyLatch {
+		ms.startGame(eventDispatcher, menuState.SelectedMode)
+		menuState.KeyLatch = true
+	}
 	if !ebiten.IsKeyPressed(ebiten.KeyUp) && !ebiten.IsKeyPressed(ebiten.KeyDown) && !ebiten.IsKeyPressed(ebiten.KeyEnter) {
-		ms.keyPressed = false
+		menuState.KeyLatch = false
 	}
 }
 
-func (ms *MenuSystem) startGame(eventDispatcher *events.EventDispatcher) {
-	// Publish game start event with selected mode
+var menuOptions = []string{
+	"Mission Critical (99.95% SLA, 3 errors)",
+	"Business Critical (99.5% SLA, 10 errors)",
+	"Business Operational (99% SLA, 25 errors)",
+	"Office Productivity (95% SLA, 50 errors)",
+	"Best Effort (90% SLA, 100 errors)",
+}
+
+var menuSLA = []float64{99.95, 99.5, 99.0, 95.0, 90.0}
+var menuErrors = []int{3, 10, 25, 50, 100}
+
+func (ms *MenuSystem) startGame(eventDispatcher *events.EventDispatcher, selectedMode int) {
+	// Publish game start event with selected mode from component
+	sla := menuSLA[selectedMode]
+	errs := menuErrors[selectedMode]
 	eventDispatcher.Publish(events.NewEvent(events.EventGameStart, &events.EventData{
-		Mode:   &ms.selectedMode,
-		SLA:    &ms.menuSLA[ms.selectedMode],
-		Errors: &ms.menuErrors[ms.selectedMode],
+		Mode:   &selectedMode,
+		SLA:    &sla,
+		Errors: &errs,
 	}))
 }
 
-func (ms *MenuSystem) Draw(screen *ebiten.Image) {
+func (ms *MenuSystem) Draw(screen *ebiten.Image, entities []Entity) {
 	// Draw menu background
 	screen.Fill(color.RGBA{20, 20, 40, 255})
 
@@ -82,11 +95,22 @@ func (ms *MenuSystem) Draw(screen *ebiten.Image) {
 	subtitle := "Select Game Mode:"
 	text.Draw(screen, subtitle, basicfont.Face7x13, 200, 130, color.White)
 
+	// Read MenuState to get selected mode
+	selected := 0
+	for _, e := range entities {
+		if comp := e.GetComponentByName("MenuState"); comp != nil {
+			if st, ok := comp.(*components.MenuState); ok {
+				selected = st.SelectedMode
+				break
+			}
+		}
+	}
+
 	// Draw menu options
-	for i, option := range ms.menuOptions {
+	for i, option := range menuOptions {
 		y := 160 + i*30
 		var col color.Color = color.White
-		if i == ms.selectedMode {
+		if i == selected {
 			col = color.RGBA{255, 255, 0, 255} // Yellow for selected
 		}
 		text.Draw(screen, option, basicfont.Face7x13, 150, y, col)

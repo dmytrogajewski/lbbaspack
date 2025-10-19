@@ -6,19 +6,21 @@ import "time"
 type EventType string
 
 const (
-	EventPacketCaught     EventType = "packet_caught"
-	EventPacketLost       EventType = "packet_lost"
-	EventPowerUpCollected EventType = "powerup_collected"
-	EventPowerUpActivated EventType = "powerup_activated"
-	EventGameOver         EventType = "game_over"
-	EventGameStart        EventType = "game_start"
-	EventReturnToMenu     EventType = "return_to_menu"
-	EventExit             EventType = "exit"
-	EventSLAUpdated       EventType = "sla_updated"
-	EventLevelUp          EventType = "level_up"
-	EventDDoSStart        EventType = "ddos_start"
-	EventDDoSEnd          EventType = "ddos_end"
-	EventPacketDelivered  EventType = "packet_delivered"
+	EventPacketCaught      EventType = "packet_caught"
+	EventPacketLost        EventType = "packet_lost"
+	EventPowerUpCollected  EventType = "powerup_collected"
+	EventPowerUpActivated  EventType = "powerup_activated"
+	EventGameOver          EventType = "game_over"
+	EventGameStart         EventType = "game_start"
+	EventReturnToMenu      EventType = "return_to_menu"
+	EventExit              EventType = "exit"
+	EventSLAUpdated        EventType = "sla_updated"
+	EventLevelUp           EventType = "level_up"
+	EventDDoSStart         EventType = "ddos_start"
+	EventDDoSEnd           EventType = "ddos_end"
+	EventPacketDelivered   EventType = "packet_delivered"
+	EventCollisionDetected EventType = "collision_detected"
+	EventColliderOffscreen EventType = "collider_offscreen"
 )
 
 // EventData represents typed event data
@@ -41,6 +43,15 @@ type EventData struct {
 	SLA         *float64
 	Errors      *int
 	BackendID   *int
+	// Generalized collision context
+	EntityA interface{}
+	EntityB interface{}
+	TagA    *string
+	TagB    *string
+	PosAX   *float64
+	PosAY   *float64
+	PosBX   *float64
+	PosBY   *float64
 }
 
 // Event represents a game event

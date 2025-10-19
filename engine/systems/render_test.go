@@ -30,10 +30,7 @@ func TestNewRenderSystem(t *testing.T) {
 		}
 	}
 
-	// Test call count initialization
-	if rs.callCount != 0 {
-		t.Errorf("Expected initial call count to be 0, got %d", rs.callCount)
-	}
+	// No internal counters anymore
 }
 
 func TestRenderSystem_UpdateWithScreen_NoEntities(t *testing.T) {

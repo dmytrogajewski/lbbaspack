@@ -2,6 +2,7 @@ package systems
 
 import (
 	"fmt"
+	"lbbaspack/engine/components"
 	"lbbaspack/engine/events"
 )
 
@@ -9,25 +10,15 @@ const SystemTypeSLA SystemType = "sla"
 
 type SLASystem struct {
 	BaseSystem
-	totalPackets  int
-	caughtPackets int
-	lostPackets   int
-	errorBudget   int
-	spawnSys      *SpawnSystem // Reference to SpawnSystem
 }
 
-func NewSLASystem(spawnSys *SpawnSystem) *SLASystem {
+func NewSLASystem() *SLASystem {
 	return &SLASystem{
 		BaseSystem: BaseSystem{
 			RequiredComponents: []string{
 				"SLA",
 			},
 		},
-		totalPackets:  0,
-		caughtPackets: 0,
-		lostPackets:   0,
-		errorBudget:   10, // Default error budget
-		spawnSys:      spawnSys,
 	}
 }
 
@@ -46,117 +37,117 @@ func (slas *SLASystem) GetSystemInfo() *SystemInfo {
 }
 
 func (ss *SLASystem) Update(deltaTime float64, entities []Entity, eventDispatcher *events.EventDispatcher) {
-	// Update SLA components
 	for _, entity := range ss.FilterEntities(entities) {
 		slaComp := entity.GetSLA()
 		if slaComp == nil {
 			continue
 		}
-		sla := slaComp
-
-		// Calculate current SLA percentage
-		if ss.totalPackets > 0 {
-			currentSLA := float64(ss.caughtPackets) / float64(ss.totalPackets) * 100.0
-			sla.SetCurrent(currentSLA)
-
-			// Update remaining errors
-			remainingErrors := ss.errorBudget - ss.lostPackets
-			if remainingErrors < 0 {
-				remainingErrors = 0
-			}
-			sla.SetErrorsRemaining(remainingErrors)
-
-			// Check for SLA violations
-			if currentSLA < sla.GetTarget() {
-				fmt.Printf("SLA violation! Current: %.2f%%, Target: %.2f%%\n", currentSLA, sla.GetTarget())
+		if sla, ok := slaComp.(*components.SLA); ok {
+			if sla.Total > 0 {
+				currentSLA := float64(sla.Caught) / float64(sla.Total) * 100.0
+				sla.SetCurrent(currentSLA)
+				remainingErrors := sla.ErrorBudget - sla.Lost
+				if remainingErrors < 0 {
+					remainingErrors = 0
+				}
+				sla.SetErrorsRemaining(remainingErrors)
+				if currentSLA < sla.GetTarget() {
+					fmt.Printf("SLA violation! Current: %.2f%%, Target: %.2f%%\n", currentSLA, sla.GetTarget())
+				}
+			} else {
+				sla.SetCurrent(100.0)
+				sla.SetErrorsRemaining(sla.ErrorBudget)
 			}
 		}
 	}
 }
 
 func (ss *SLASystem) Initialize(eventDispatcher *events.EventDispatcher) {
-	// Listen for packet events to update SLA
-	eventDispatcher.Subscribe(events.EventPacketCaught, func(event *events.Event) {
-		ss.caughtPackets++
-		ss.totalPackets++
-		ss.updateSLA(eventDispatcher)
+	// Subscribe and update SLA counters directly on components
+	eventDispatcher.Subscribe(events.EventCollisionDetected, func(event *events.Event) {
+		if event == nil || event.Data == nil {
+			return
+		}
+		if event.Data.TagA == nil || event.Data.TagB == nil {
+			return
+		}
+		aIsLB := *event.Data.TagA == "loadbalancer"
+		bIsLB := *event.Data.TagB == "loadbalancer"
+		aIsPacket := *event.Data.TagA == "packet"
+		bIsPacket := *event.Data.TagB == "packet"
+		if (aIsLB && bIsPacket) || (bIsLB && aIsPacket) {
+			var target Entity
+			if aIsLB {
+				if e, ok := event.Data.EntityA.(Entity); ok {
+					target = e
+				}
+			} else if bIsLB {
+				if e, ok := event.Data.EntityB.(Entity); ok {
+					target = e
+				}
+			}
+			if target != nil {
+				if sc := target.GetSLA(); sc != nil {
+					if sla, ok := sc.(*components.SLA); ok {
+						sla.IncrementCaught()
+						current := 100.0
+						if sla.Total > 0 {
+							current = float64(sla.Caught) / float64(sla.Total) * 100.0
+							sla.SetCurrent(current)
+						}
+						remaining := sla.ErrorBudget - sla.Lost
+						if remaining < 0 {
+							remaining = 0
+						}
+						eventDispatcher.Publish(events.NewEvent(events.EventSLAUpdated, &events.EventData{Current: &current, Caught: &sla.Caught, Lost: &sla.Lost, Remaining: &remaining, Budget: &sla.ErrorBudget}))
+					}
+				}
+			}
+		}
 	})
-
-	eventDispatcher.Subscribe(events.EventPacketLost, func(event *events.Event) {
-		ss.lostPackets++
-		ss.totalPackets++
-		// Increase packet speed by 5% on each lost packet
-		if ss.spawnSys != nil {
-			ss.spawnSys.IncreasePacketSpeed(5.0)
+	eventDispatcher.Subscribe(events.EventColliderOffscreen, func(event *events.Event) {
+		if event == nil || event.Data == nil || event.Data.TagB == nil {
+			return
 		}
-		ss.updateSLA(eventDispatcher)
+		if *event.Data.TagB != "packet" {
+			return
+		}
+		// increment lost on any entity that has SLA (prefer one present in event)
+		for _, ent := range []interface{}{event.Data.EntityA, event.Data.EntityB} {
+			if e, ok := ent.(Entity); ok && e != nil {
+				if sc := e.GetSLA(); sc != nil {
+					if sla, ok := sc.(*components.SLA); ok {
+						sla.IncrementLost()
+						current := 100.0
+						if sla.Total > 0 {
+							current = float64(sla.Caught) / float64(sla.Total) * 100.0
+							sla.SetCurrent(current)
+						}
+						remaining := sla.ErrorBudget - sla.Lost
+						if remaining < 0 {
+							remaining = 0
+						}
+						eventDispatcher.Publish(events.NewEvent(events.EventSLAUpdated, &events.EventData{Current: &current, Caught: &sla.Caught, Lost: &sla.Lost, Remaining: &remaining, Budget: &sla.ErrorBudget}))
+						if remaining <= 0 {
+							eventDispatcher.Publish(events.NewEvent(events.EventGameOver, &events.EventData{Score: &sla.Caught, Lost: &sla.Lost}))
+						}
+						break
+					}
+				}
+			}
+		}
 	})
 }
 
-func (ss *SLASystem) updateSLA(eventDispatcher *events.EventDispatcher) {
-	if ss.totalPackets > 0 {
-		currentSLA := float64(ss.caughtPackets) / float64(ss.totalPackets) * 100.0
-		remainingErrors := ss.errorBudget - ss.lostPackets
+// React to offscreen events in Update by scanning SLA components; keep Initialize empty to remain stateless
 
-		// Only print "Packet lost!" message when packets are actually lost
-		if ss.lostPackets > 0 {
-			fmt.Printf("Packet lost! SLA: %.2f%%, Errors remaining: %d/%d\n", currentSLA, remainingErrors, ss.errorBudget)
-		}
+// SLA counters now updated by reacting to events in Update only
 
-		// Publish SLA update event for UI (for both caught and lost packets)
-		eventDispatcher.Publish(events.NewEvent(events.EventSLAUpdated, &events.EventData{
-			Current:   &currentSLA,
-			Caught:    &ss.caughtPackets,
-			Lost:      &ss.lostPackets,
-			Remaining: &remainingErrors,
-			Budget:    &ss.errorBudget,
-		}))
+// updateSLA removed; SLA events should be published by systems that mutate SLA components if needed
 
-		// Check if error budget has been exceeded
-		if remainingErrors <= 0 {
-			fmt.Printf("ERROR BUDGET EXCEEDED! Game Over!\n")
-			// Publish game over event
-			eventDispatcher.Publish(events.NewEvent(events.EventGameOver, &events.EventData{
-				Score: &ss.caughtPackets,
-				Lost:  &ss.lostPackets,
-			}))
-		}
-	}
-}
+func (ss *SLASystem) SetTargetSLA(target float64) {}
 
-func (ss *SLASystem) SetTargetSLA(target float64) {
-	// This sets the target SLA for all entities with an SLA component
-	fmt.Printf("SLA target set to %.2f%%\n", target)
-	// Optionally, you could update all SLA components here
-}
+func (ss *SLASystem) SetErrorBudget(budget int) {}
 
-func (ss *SLASystem) SetErrorBudget(budget int) {
-	ss.errorBudget = budget
-	fmt.Printf("Error budget set to %d errors\n", budget)
-	// Optionally, you could update all SLA components here
-}
-
-// Getter methods for testing
-func (ss *SLASystem) GetTotalPackets() int {
-	return ss.totalPackets
-}
-
-func (ss *SLASystem) GetCaughtPackets() int {
-	return ss.caughtPackets
-}
-
-func (ss *SLASystem) GetLostPackets() int {
-	return ss.lostPackets
-}
-
-func (ss *SLASystem) GetErrorBudget() int {
-	return ss.errorBudget
-}
-
-// Reset method to clear all counters for new game
-func (ss *SLASystem) Reset() {
-	ss.totalPackets = 0
-	ss.caughtPackets = 0
-	ss.lostPackets = 0
-	fmt.Printf("SLA system reset - counters cleared\n")
-}
+// No internal state; keep empty methods for interface stability if used elsewhere
+func (ss *SLASystem) Reset() {}

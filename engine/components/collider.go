@@ -42,6 +42,12 @@ func (c *Collider) SetTag(tag string) {
 	c.Tag = tag
 }
 
+// SetWidth updates collider width
+func (c *Collider) SetWidth(width float64) { c.Width = width }
+
+// SetHeight updates collider height
+func (c *Collider) SetHeight(height float64) { c.Height = height }
+
 // GetBounds returns the collision bounds
 func (c *Collider) GetBounds(x, y float64) (float64, float64, float64, float64) {
 	return x, y, x + c.Width, y + c.Height

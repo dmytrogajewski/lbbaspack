@@ -32,6 +32,8 @@ type ColliderComponent interface {
 	GetWidth() float64
 	GetHeight() float64
 	SetTag(tag string)
+	SetWidth(width float64)
+	SetHeight(height float64)
 }
 
 // PhysicsComponent represents physics functionality

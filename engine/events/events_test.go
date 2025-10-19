@@ -18,6 +18,7 @@ func TestEventTypeConstants(t *testing.T) {
 		EventLevelUp,
 		EventDDoSStart,
 		EventDDoSEnd,
+		EventCollisionDetected,
 	}
 
 	for _, eventType := range expectedTypes {
